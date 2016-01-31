@@ -67,7 +67,7 @@ end process;
 process (clk)
 begin
     if rising_edge(clk) then
-        if (counter = (others => '0')) then
+        if (counter = (clk_div-1 downto 0 => '0')) then
             if (anodes(0)='0') then 
               anodes(0) <= '1';	 
               cathodes <= numbers(1);
