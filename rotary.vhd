@@ -13,7 +13,6 @@ end rotary;
 
 architecture Behavioral of rotary is
     signal freq_int     : std_logic_vector(bits-1 downto 0) := ((bits-1 downto 1 => '0') & '1'); --"0010101101100111";
-    --signal current_state: std_logic_vector(2 downto 0) := "000";
     signal state   : std_logic_vector(2 downto 0) := "000";
     
     signal debounced_AB : std_logic_vector(1 downto 0);
@@ -103,11 +102,5 @@ begin
     end if;
 end process;
 
---process (clk)
---begin
---    if rising_edge(clk) then
---        current_state <= state;
---    end if;
---end process;
 end Behavioral;
 
