@@ -15,7 +15,14 @@ end osc;
 
 architecture Behavioral of osc is
     signal cntr : std_logic_vector(n-1 downto 0) := (n-1 downto 0 => '0');
+    
+    signal cos : std_logic_vector(bits-1 downto 0);
 begin
+
+    CORDIC : entity work.CORDIC
+        generic map (bits => bits, iters => bits)
+        port map (clk => clk, angle => cntr(n-1 downto n-bits), cos => cos);
+
 
 process (clk)
     
@@ -25,7 +32,9 @@ begin
         cntr <= std_logic_vector(unsigned(cntr) + ((n-bits-1 downto 0 => '0') & unsigned(freq)));
     end if;
     
-    if wave = "01" then
+    if wave = "00" then
+        output <= cos;
+    elsif wave = "01" then
         output <= cntr(n-1 downto n-bits);
     elsif wave = "11" then
         if cntr(n-1) = '0' then
