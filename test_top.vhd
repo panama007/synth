@@ -1,6 +1,7 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 
 
@@ -23,11 +24,12 @@ architecture Behavioral of test_top is
     signal test : std_logic_vector(2 downto 0);
     signal divided_clk : std_logic;
     
-    constant div : integer := 2;
+    constant div : integer := 8;
+    signal ctr : unsigned(div-1 downto 0) := (others => '0');
 begin
     --freq <= keyboard(11) & keyboard(9) & (bits-3 downto 0 => '0');
     --to_disp <= test & (bits-4 downto 0 => '0') when switches(0) = '1' else
-    to_disp <= freq;
+    to_disp <= switches(1 downto 0) & (bits-3 downto 0 => '0');--freq;
     
     LCD : entity work.LCD_driver 
         generic map (bits => bits, clk_div => 10)
@@ -35,7 +37,7 @@ begin
     
     OSC : entity work.osc
         generic map (bits => bits, n => 20)    
-        port map (freq => freq, wave => switches(1 downto 0), clk => divided_clk, output => waveform);
+        port map (freq => freq, wave => switches(1 downto 0), clk => divided_clk, output => waveform, CORDIC_clk => clk);
         
     ROT : entity work.rotary
         generic map (bits => bits)
@@ -46,14 +48,10 @@ begin
         port map (clk => clk, data_in => waveform, data_out => speaker);
 
 process (clk)
-    variable ctr : integer := 0;
 begin
     if rising_edge(clk) then
-        if ctr = 2**div then
-            divided_clk <= not divided_clk;
-            ctr := 0;
-        end if;
-        ctr := ctr + 1;        
+        ctr <= ctr + ((div-1 downto 1 => '0') & '1');
     end if;
+    divided_clk <= ctr(div-1);
 end process;
 end Behavioral;

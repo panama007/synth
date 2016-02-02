@@ -13,16 +13,16 @@ end sigma_delta_DAC;
 
 architecture Behavioral of sigma_delta_DAC is
     --signal dif : std_logic_vector(n-1 downto 0);
-    signal integrated : unsigned(bits-1 downto 0);
+    signal accumulator : unsigned(bits downto 0) := (others => '0');
     --signal out_int : std_logic;
 begin
     --dif <= data_in - (n-1 downto 0 => out_int);
-    data_out <= integrated(bits-1);
+    data_out <= accumulator(bits);
     
 process(clk)
 begin
     if rising_edge(clk) then
-        integrated <= integrated + unsigned(data_in);
+        accumulator <= ('0' & accumulator(bits-1 downto 0)) + unsigned('0' & data_in);
     end if;
 end process;
 
