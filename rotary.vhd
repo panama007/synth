@@ -2,24 +2,26 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.all;
+use ieee.math_real.all;
 
 entity rotary is
     generic (bits: integer := 16);
     port    (AB  : in std_logic_vector(1 downto 0);
              clk : in std_logic;
-             test: out std_logic_vector(2 downto 0);
+             oct : out integer range 0 to bits-1;
              freq: out std_logic_vector(bits-1 downto 0));
 end rotary;
 
 architecture Behavioral of rotary is
     signal freq_int     : std_logic_vector(bits-1 downto 0) := ((bits-1 downto 1 => '0') & '1'); --"0010101101100111";
-    signal state   : std_logic_vector(2 downto 0) := "000";
+    signal state        : std_logic_vector(2 downto 0) := "000";
+    signal oct_int      : integer range 0 to bits-1 := 0;
     
     signal debounced_AB : std_logic_vector(1 downto 0);
     signal temp_AB      : std_logic_vector(1 downto 0);
     signal debounce_ctr : unsigned(10 downto 0) := (others => '0');
 begin
-    test <= state;
+    oct <= oct_int;
     freq <= freq_int;
 
 process (clk)
@@ -67,6 +69,7 @@ begin
                         --freq_int <= "0101011011001100"; --(others => '1');
                         if freq_int(bits-1) = '0' then 
                             freq_int <= freq_int(bits-2 downto 0) & '0';
+                            oct_int <= oct_int + 1;
                         end if;
                     when "11" => state <= "010";
                     when others => state <= "011"; 
@@ -80,6 +83,7 @@ begin
                         --freq_int <= "1000001000110010"; --(others => '1');
                         if freq_int(0) = '0' then 
                             freq_int <= '0' & freq_int(bits-1 downto 1);
+                            oct_int <= oct_int - 1;
                         end if;
                     when "11" => state <= "110";
                     when others => state <= "101"; 
