@@ -4,7 +4,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use IEEE.MATH_REAL.ALL;
 
-
+use work.my_constants.all;
 
 entity test_top is
     generic ( bits : integer := 16;
@@ -14,24 +14,17 @@ entity test_top is
            latch   : in std_logic;
            switches: in std_logic_vector(7 downto 0);
            buttons : in std_logic_vector(tones-1 downto 0);
-           rotary1 : in std_logic_vector(1 downto 0);
-           rotary2 : in std_logic_vector(1 downto 0);
-           rotary3 : in std_logic_vector(1 downto 0);
-           rotary4 : in std_logic_vector(1 downto 0);
+           rotaries: in rotaries_array;
            speaker : out std_logic;
            cathodes: out std_logic_vector(6 downto 0);
            anodes  : inout std_logic_vector(3 downto 0));
 end test_top;
 
 architecture Behavioral of test_top is
-    constant bits_voice_output : integer := bits + ceil(log2(oscs));
-
     type ar is array (0 to tones-1) of unsigned(bits-1 downto 0);
-    type ar2 is array (0 to tones-1) of std_logic_vector(bits-1 downto 0);
-    type voices_array is array (0 to tones-1) of std_logic_vector(bits_voice_output-1 downto 0);
-    type osc_freqs_array is array (0 to tones-1) of array (0 to oscs-1) of std_logic_vector(bits-1 downto 0);
+    type voices_array is array (0 to tones-1) of std_logic_vector(bits_voice_out-1 downto 0);
+    type osc_freqs_array is array (0 to tones-1) of freqs_array;
     type octaves_array is array (0 to oscs-1) of integer range 0 to bits-1;
-    type waves_array is array (0 to oscs-1) of std_logic_vector(1 downto 0);
 
     signal base_freq    : std_logic_vector(bits-1 downto 0);
     signal waveform     : std_logic_vector(bits2-1 downto 0);
@@ -42,7 +35,7 @@ architecture Behavioral of test_top is
     signal osc_freqs    : osc_freqs_array;
     signal octave       : octaves_array;
     signal wave         : waves_array;
-    
+
     constant div : integer := 8;
     signal ctr : unsigned(div-1 downto 0) := (others => '0');
     
@@ -57,36 +50,33 @@ architecture Behavioral of test_top is
     end gen_notes; 
 
     constant notes : ar := gen_notes(tones);
-    constant unsigned_notes : 
 begin
-    --freq <= keyboard(11) & keyboard(9) & (bits-3 downto 0 => '0');
-    --to_disp <= test & (bits-4 downto 0 => '0') when switches(0) = '1' else
-    to_disp <= base_freq;--switches(1 downto 0) & (bits-3 downto 0 => '0');--freq;
+    to_disp <= base_freq;
    
-    for i in 0 to oscs-1 generate
+    wave_controls : for i in 0 to oscs-1 generate
         wave(i) <= switches(2*i+1 downto 2*i);
-    end generate;
+    end generate wave_controls;
    
     LCD : entity work.LCD_driver 
         generic map (bits => bits, clk_div => 10)
         port map (latch => clk, clk => clk, to_disp => to_disp, cathodes => cathodes, anodes => anodes);
     
-    for i in 0 to tones-1 generate
-        for j in 0 to oscs-1 generate
+    loop2 : for i in 0 to tones-1 generate
+        loop1 : for j in 0 to oscs-1 generate
             osc_freqs(i)(j) <= std_logic_vector(shift_right(notes(i), bits-1-octave(j)));
-        end generate;
+        end generate loop1;
     
         VCS : entity work.synth_key
-            generic map (bits => bits, n => 20)    
+            generic map (bits => bits, oscs => oscs)    
             port map (freq => osc_freqs(i), wave => wave, divided_clk => divided_clk, output => voices(i), 
-                      clk => clk, start => buttons(i));
-    end generate;    
+                      clk => clk, start => buttons(i), mode => '1');
+    end generate loop2;    
         
-    for i in 0 to oscs-1 generate    
+    rots : for i in 0 to oscs-1 generate    
         ROT : entity work.rotary
             generic map (bits => bits)
-            port map (AB => rotary(i), clk => clk, oct => octave(i));
-    end generate;
+            port map (AB => rotaries(i), clk => clk, oct => octave(i));
+    end generate rots;
         
     DAC : entity work.sigma_delta_DAC
         generic map (bits => bits2)
@@ -102,7 +92,7 @@ begin
     
     cumsum := (others => '0');
     for i in 0 to tones-1 loop
-        cumsum := cumsum + ((bits2-bits-1 downto 0 => '0') & unsigned(voices(i)));
+        cumsum := cumsum + resize(unsigned(voices(i)), bits2);
     end loop;
     waveform <= std_logic_vector(cumsum);
     
