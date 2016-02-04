@@ -9,7 +9,6 @@ entity osc is
               n     : integer := 20);
     port    ( freq  : in  std_logic_vector (bits-1 downto 0);
               wave  : in  std_logic_vector (1 downto 0);
-              button: in std_logic;
               clk   : in  std_logic;
               CORDIC_clk : in std_logic;
               output: out std_logic_vector (bits-1 downto 0));
@@ -26,8 +25,7 @@ begin
         generic map (bits => bits, iters => bits)
         port map (clk => CORDIC_clk, angle => cntr(n-1 downto n-bits), cos => cos);
 
-    output <= output_int when button = '1' else
-              (others => '0');
+    output <= output_int;
 process (clk)
     
 begin
