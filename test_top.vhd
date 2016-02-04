@@ -15,6 +15,9 @@ entity test_top is
            switches: in std_logic_vector(7 downto 0);
            buttons : in std_logic_vector(tones-1 downto 0);
            rotary1 : in std_logic_vector(1 downto 0);
+           rotary2 : in std_logic_vector(1 downto 0);
+           rotary3 : in std_logic_vector(1 downto 0);
+           rotary4 : in std_logic_vector(1 downto 0);
            speaker : out std_logic;
            cathodes: out std_logic_vector(6 downto 0);
            anodes  : inout std_logic_vector(3 downto 0));
@@ -49,11 +52,11 @@ architecture Behavioral of test_top is
 begin
     --freq <= keyboard(11) & keyboard(9) & (bits-3 downto 0 => '0');
     --to_disp <= test & (bits-4 downto 0 => '0') when switches(0) = '1' else
-    to_disp <= switches(1 downto 0) & (bits-3 downto 0 => '0');--freq;
+    to_disp <= freq;--switches(1 downto 0) & (bits-3 downto 0 => '0');--freq;
    
     LCD : entity work.LCD_driver 
         generic map (bits => bits, clk_div => 10)
-        port map (latch => clk, clk => clk, freq => to_disp, cathodes => cathodes, anodes => anodes);
+        port map (latch => clk, clk => clk, to_disp => to_disp, cathodes => cathodes, anodes => anodes);
     
     keyboard : for i in 0 to tones-1 generate
         OSC : entity work.osc

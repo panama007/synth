@@ -9,7 +9,7 @@ entity LCD_driver is
               clk_div : integer := 10);  -- div clk by 2^10
     port    ( latch   : in  std_logic;
               clk     : in  std_logic;
-              freq    : in  std_logic_vector(bits-1 downto 0);
+              to_disp : in  std_logic_vector(bits-1 downto 0);
               cathodes: out std_logic_vector(6 downto 0);
               anodes  : inout std_logic_vector(3 downto 0));
 end LCD_driver;
@@ -17,46 +17,33 @@ end LCD_driver;
 architecture Behavioral of LCD_driver is
     type display is array (0 to 3) of std_logic_vector(6 downto 0);
     signal numbers : display;
+    
     signal counter : unsigned(clk_div-1 downto 0);
     
-    --signal last_state : std_logic := '0';
 begin
 
 process (clk) 
-    variable temp : std_logic_vector(bits-1 downto 0); 
-    variable bcd : unsigned(19 downto 0) := (others => '0');
 begin
     if rising_edge(clk) then
-        --if (latch = '1' and last_state = '0') then
-            bcd := (others => '0');
-
-            -- read input into temp variable
-            temp := freq;
-
-            for i in 0 to bits-1 loop
-                for j in 0 to 4 loop
-                    if bcd(4*j+3 downto 4*j) > 4 then 
-                    bcd(4*j+3 downto 4*j) := bcd(4*j+3 downto 4*j) + 3;
-                    end if;
-                end loop;
-                
-                bcd := bcd(18 downto 0) & temp(bits-1);
-                temp := temp(bits-2 downto 0) & '0';
-            end loop;
-
-            for i in 1 to 4 loop
-                case bcd(4*i+3 downto 4*i) is 
-                    when "0000" => numbers(i-1) <="1000000";
-                    when "0001" => numbers(i-1) <="1111001";
-                    when "0010" => numbers(i-1) <="0100100";
-                    when "0011" => numbers(i-1) <="0110000"; 
-                    when "0100" => numbers(i-1) <="0011001"; 
-                    when "0101" => numbers(i-1) <="0010010"; 
-                    when "0110" => numbers(i-1) <="0000010";  
-                    when "0111" => numbers(i-1) <="1111000";  
-                    when "1000" => numbers(i-1) <="0000000";  
-                    when "1001" => numbers(i-1) <="0010000";  
-                    when others=> numbers(i-1) <="1111111";
+            for i in 0 to 3 loop
+                case to_disp(4*i+3 downto 4*i) is 
+                    when "0000" => numbers(i) <="1000000";
+                    when "0001" => numbers(i) <="1111001";
+                    when "0010" => numbers(i) <="0100100";
+                    when "0011" => numbers(i) <="0110000"; 
+                    when "0100" => numbers(i) <="0011001"; 
+                    when "0101" => numbers(i) <="0010010"; 
+                    when "0110" => numbers(i) <="0000010";  
+                    when "0111" => numbers(i) <="1111000";  
+                    when "1000" => numbers(i) <="0000000";  
+                    when "1001" => numbers(i) <="0010000";  
+                    when "1010" => numbers(i) <="0001000";  
+                    when "1011" => numbers(i) <="0000011";  
+                    when "1100" => numbers(i) <="1000110";  
+                    when "1101" => numbers(i) <="0100001";  
+                    when "1110" => numbers(i) <="0000110";  
+                    when "1111" => numbers(i) <="0001110";  
+                    when others=> numbers(i) <="1111111";
                 end case;
             end loop;
         --end if;

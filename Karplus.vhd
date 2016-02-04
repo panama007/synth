@@ -19,14 +19,14 @@ architecture Behavioral of Karplus is
     type delay_line is array (0 to p-1) of std_logic_vector(bits-1 downto 0);
     signal delay : delay_line;
     
-    signal output_int : std_logic_vector(bits-1 downto 0);
+    signal output_int : std_logic_vector(bits downto 0);
 begin
 
 process (clk)
     
 begin
     if rising_edge(clk) then
-        output_int <= std_logic_vector(unsigned('0' & delay(p-1)(bits-1 downto 1)) + unsigned('0' & delay(p-2)(bits-1 downto 1)));
+        output_int <= std_logic_vector(unsigned('0' & delay(p-1)) + unsigned('0' & delay(p-2)));
     
         if start = '1' then
             delay <= (0 to p-2 => (bits-1 downto 0 => '0')) & (bits-1 downto 0 => '1');
@@ -36,7 +36,7 @@ begin
     end if;
 end process;
 
-    output <= output_int;
+    output <= output_int(bits downto 1);
 
 end Behavioral;
 
