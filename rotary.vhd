@@ -8,43 +8,33 @@ entity rotary is
     generic (bits: integer := 16);
     port    (AB  : in std_logic_vector(1 downto 0);
              clk : in std_logic;
+             up  : out std_logic;
+             down: out std_logic;
              oct : out integer range 0 to bits-1;
              freq: out std_logic_vector(bits-1 downto 0));
 end rotary;
 
 architecture Behavioral of rotary is
-    signal freq_int     : std_logic_vector(bits-1 downto 0) := ((bits-1 downto 1 => '0') & '1'); --"0010101101100111";
+    signal freq_int     : std_logic_vector(bits-1 downto 0) := ((bits-1 downto 1 => '0') & '1');
     signal state        : std_logic_vector(2 downto 0) := "000";
     signal oct_int      : integer range 0 to bits-1 := 0;
     
     signal debounced_AB : std_logic_vector(1 downto 0);
-    signal temp_AB      : std_logic_vector(1 downto 0);
-    signal debounce_ctr : unsigned(10 downto 0) := (others => '0');
 begin
     oct <= oct_int;
     freq <= freq_int;
-
-process (clk)
-begin
-    if rising_edge(clk) then
-        if debounce_ctr(10) = '1' then
-            debounced_AB <= temp_AB;
-        end if;
     
-        if AB = temp_AB then
-            debounce_ctr <= debounce_ctr + ((10 downto 1 => '0') & '1');
-        else
-            debounce_ctr <= (others => '0');
-            temp_AB <= AB;
-        end if;
-    end if;
-end process;
+    DB : entity work.debouncer
+        generic map (signals => 2)
+        port map (clk => clk, bouncy => AB, debounced => debounced_AB);
 
 process (clk) 
 begin
     if rising_edge(clk) then
         case state is
             when "000" => 
+                up <= '0';
+                down <= '0';
                 case debounced_AB is
                     when "01" => state <= "001";
                     when "10" => state <= "111";
@@ -66,7 +56,7 @@ begin
                 case debounced_AB is
                     when "00" => 
                         state <= "000";
-                        --freq_int <= "0101011011001100"; --(others => '1');
+                        up <= '1';
                         if freq_int(bits-1) = '0' then 
                             freq_int <= freq_int(bits-2 downto 0) & '0';
                             oct_int <= oct_int + 1;
@@ -80,7 +70,7 @@ begin
                 case debounced_AB is
                     when "00" =>
                         state <= "000";
-                        --freq_int <= "1000001000110010"; --(others => '1');
+                        down <= '1';
                         if freq_int(0) = '0' then 
                             freq_int <= '0' & freq_int(bits-1 downto 1);
                             oct_int <= oct_int - 1;

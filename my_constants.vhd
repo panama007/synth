@@ -16,11 +16,13 @@ package my_constants is
     constant oscs   : integer := 3;
     constant bits_voice_out : integer := bits + integer(ceil(log2(real(oscs))));
     constant voices : integer := 4; 
+    constant n      : integer := 20;
 
     type freqs_array        is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
     type waveforms_array    is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
     type rotaries_array     is array(0 to oscs-1) of std_logic_vector(1 downto 0);
     type waves_array        is array(0 to oscs-1) of std_logic_vector(1 downto 0);
+    type angles_array       is array(0 to oscs-1) of std_logic_vector(n-1 downto 0);
     
 end package my_constants;
 
