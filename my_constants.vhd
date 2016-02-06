@@ -13,9 +13,9 @@ use IEEE.MATH_REAL.all;
 
 package my_constants is
     constant bits   : integer := 16;
-    constant oscs   : integer := 3;
+    constant oscs   : integer := 2;
     constant bits_voice_out : integer := bits + integer(ceil(log2(real(oscs))));
-    constant voices : integer := 4; 
+    constant voices : integer := 12; 
     constant n      : integer := 20;
 
     type freqs_array        is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
