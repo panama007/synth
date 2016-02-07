@@ -1,9 +1,4 @@
-create entity for all variables (or put this in the top block)
-add amplitudes, multiplying osc outputs (coeff < 1)
-make waveform signed so we don't add a frequency offset
 
-
-amplitude envelope, as output of voice
 change display to allow upside-down
     add entity outside of display that smartly chooses what to display
 filters?

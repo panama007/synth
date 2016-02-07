@@ -11,6 +11,7 @@ entity osc is
               wave  : in  std_logic_vector (1 downto 0);
               clk   : in  std_logic;
               CORDIC_clk : in std_logic;
+              button : in std_logic;
               output: out std_logic_vector (bits-1 downto 0));
 end osc;
 
@@ -18,6 +19,7 @@ architecture Behavioral of osc is
     signal output_int : signed(bits-1 downto 0) := (others => '0');
     signal cos : std_logic_vector(bits-1 downto 0);
     
+    signal old_button : std_logic := '0';
     signal cntr: signed(n-1 downto 0) := (others => '0');
 begin
 
@@ -31,6 +33,9 @@ process (clk)
 begin
     if rising_edge(clk) then
         cntr <= cntr + resize(signed(freq), n);
+        if button = '1' and old_button = '0' then
+            cntr <= (others => '0');
+        end if;
     
         case wave is
             when "00" => output_int <= signed(cos); 
@@ -43,6 +48,8 @@ begin
                     output_int <= (n-2 downto n-bits-1 => '1') - cntr(n-2 downto n-bits-1);
                 end if;
         end case;
+        
+        old_button <= button;
     end if;
 end process;
 end Behavioral;

@@ -8,8 +8,7 @@ entity rotary is
     generic (bits: integer := 16);
     port    (AB  : in std_logic_vector(1 downto 0);
              clk : in std_logic;
-             up  : out std_logic;
-             down: out std_logic;
+             up_down  : out std_logic_vector(1 downto 0);
              oct : out integer range 0 to bits-1;
              freq: out std_logic_vector(bits-1 downto 0));
 end rotary;
@@ -33,8 +32,7 @@ begin
     if rising_edge(clk) then
         case state is
             when "000" => 
-                up <= '0';
-                down <= '0';
+                up_down <= "00";
                 case debounced_AB is
                     when "01" => state <= "001";
                     when "10" => state <= "111";
@@ -56,7 +54,7 @@ begin
                 case debounced_AB is
                     when "00" => 
                         state <= "000";
-                        up <= '1';
+                        up_down <= "10";
                         if freq_int(bits-1) = '0' then 
                             freq_int <= freq_int(bits-2 downto 0) & '0';
                             oct_int <= oct_int + 1;
@@ -70,7 +68,7 @@ begin
                 case debounced_AB is
                     when "00" =>
                         state <= "000";
-                        down <= '1';
+                        up_down <= "01";
                         if freq_int(0) = '0' then 
                             freq_int <= '0' & freq_int(bits-1 downto 1);
                             oct_int <= oct_int - 1;
