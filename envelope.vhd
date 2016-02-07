@@ -19,7 +19,7 @@ use work.my_constants.all;
 -- generics:
 --      bits-
 --          Number of bits the input/output has.
--- port:
+-- ports:
 --      full_signal-
 --          unadultered input signal, should be full range (0 to 2^bits).
 --      clk-
@@ -56,12 +56,13 @@ architecture Behavioral of envelope is
     signal temp_signal : unsigned(bits-1+12 downto 0);
     -- the ADSR waveform, kinda like a sharkfin, but more linear.
     signal factor : unsigned(11 downto 0);
-    
+    -- counter so we know when it's been 1 ms.
     signal cntr : integer range 0 to ms;
     
+    -- to see when we just pressed the button.
     signal old_button : std_logic := '0';
 begin
-
+    -- do the calculations
     temp_signal <= factor * unsigned(full_signal);
     env_signal <= std_logic_vector(temp_signal(bits-1+12 downto 12));
 
@@ -71,30 +72,30 @@ begin
         cntr <= cntr + 1;
         
         case state is
-            when "000" => 
+            when "000" =>       -- waiting for a button press
                 factor <= (others => '0');
                 cntr <= 0;
                 if button = '1' and old_button = '0' then
                     state <= "001";
                 end if;
-            when "001" => 
+            when "001" =>       -- in attack
                 if cntr < 391 then
                     factor <= factor + slope1;
                 else
                     state <= "010";
                     cntr <= 0;
                 end if;
-            when "010" => 
+            when "010" =>       -- in decay
                 if cntr < 391 then
                     factor <= factor - slope2;
                 else
                     state <= "011";
-            when "011" => 
+            when "011" =>       -- in sustain
                 factor <= factor;
                 if button = '0' and old_button = '1' then
                     state <= "100";
                 end if;
-            when others =>
+            when others =>      -- in release
                 if factor > slope3 then
                     factor <= factor - slope3;
                 else
