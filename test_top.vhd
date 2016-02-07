@@ -35,6 +35,7 @@ architecture Behavioral of test_top is
     signal octave       : octaves_array;
     signal wave         : waves_array;
     signal mode         : std_logic_vector(2 downto 0);
+    signal db_buttons   : std_logic_vector(voices-1 downto 0);
 
     constant div : integer := 8;
     signal ctr : unsigned(div-1 downto 0) := (others => '0');
@@ -58,6 +59,10 @@ begin
         wave(i) <= switches(2*i+1 downto 2*i);
     end generate wave_controls;
    
+    DB : entity work.debouncer
+        generic map (signals => voices)
+        port map (bouncy => buttons, clk => clk, debounced => db_buttons);
+   
     LCD : entity work.LCD_driver 
         generic map (bits => bits, clk_div => 10)
         port map (latch => clk, clk => clk, to_disp => to_disp, cathodes => cathodes, anodes => anodes);
@@ -70,7 +75,7 @@ begin
         VCS : entity work.synth_key
             generic map (bits => bits, oscs => oscs)    
             port map (freq => osc_freqs(i), wave => wave, divided_clk => divided_clk, output => voice_outputs(i), 
-                      clk => clk, start => buttons(i), mode => mode);
+                      clk => clk, start => db_buttons(i), mode => mode);
     end generate loop2;    
         
     rots : for i in 0 to oscs-1 generate    

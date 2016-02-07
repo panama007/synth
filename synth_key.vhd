@@ -20,55 +20,55 @@ end synth_key;
 
 architecture Behavioral of synth_key is
     signal waveforms : waveforms_array;
+    signal signed_waveforms : waveforms_array;
     signal KSoutput  : std_logic_vector(bits-1 downto 0);
     signal output_int: std_logic_vector(bits_voice_out-1 downto 0);
 
-    signal freqs     : freqs_array;
+    signal freqs     : freqs_array2;
     --KS : entity work.Karplus
       --  generic map (bits => bits, n => 20)    
         --port map (freq => freq(i), wave => wave(i), clk => divided_clk, output => waveforms(i), CORDIC_clk => clk);
     
 begin
     
+        blah : for i in 0 to oscs-1 generate
+            signed_waveforms(i) <= std_logic_vector(resize(signed(resize(unsigned(waveforms(i)), bits+1)) - ("01" & (bits-2 downto 0 => '0')), bits));
+        end generate blah;
+
+    
 process (clk)
 --    variable cumsum : unsigned(bits_voice_out-1 downto 0);
 begin
     if rising_edge(clk) then
---        cumsum := (others => '0');
---        for i in 0 to oscs-1 loop
---            cumsum := cumsum + resize(unsigned(waveforms(i)), bits_voice_out);
---        end loop;
-        
-        
         case mode is
             when "000" => 
-                freqs(0)  <= freq(0);
-                freqs(1)  <= freq(1);
+                freqs(0)  <= std_logic_vector(resize(unsigned(freq(0)), bits+3));
+                freqs(1)  <= std_logic_vector(resize(unsigned(freq(1)), bits+3));
                 output_int <= std_logic_vector(resize(unsigned(waveforms(0)), bits_voice_out) + resize(unsigned(waveforms(1)), bits_voice_out));
             when "001" => 
-                freqs(0) <= std_logic_vector(unsigned(freq(0)) + unsigned(waveforms(1)));
-                freqs(1) <= freq(1);
+                freqs(0) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(0)), bits+3))) + resize(signed(signed_waveforms(1)), bits+3));
+                freqs(1) <= std_logic_vector(resize(unsigned(freq(1)), bits+3));
                 output_int <= waveforms(0) & '0';
             when "010" => 
-                freqs(0) <= std_logic_vector(unsigned(freq(0)) + unsigned(waveforms(0)));
-                freqs(1) <= freq(1);
+                freqs(0) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(0)), bits+3))) + resize(signed(signed_waveforms(0)), bits+3));
+                freqs(1) <= std_logic_vector(resize(unsigned(freq(1)), bits+3));
                 output_int <= std_logic_vector(resize(unsigned(waveforms(0)), bits_voice_out) + resize(unsigned(waveforms(1)), bits_voice_out));
             when "011" => 
-                freqs(0) <= std_logic_vector(unsigned(freq(0)) + unsigned(waveforms(0)) + unsigned(waveforms(1)));
-                freqs(1) <= freq(1);
+                freqs(0) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(0)), bits+3))) + resize(signed(signed_waveforms(0)), bits+3) + resize(signed(signed_waveforms(1)), bits+3));
+                freqs(1) <= std_logic_vector(resize(unsigned(freq(1)), bits+3));
                 output_int <= waveforms(0) & '0';
             when "100" => 
-                freqs(0) <= std_logic_vector(unsigned(freq(0)) + unsigned(waveforms(1)));
-                freqs(1) <= std_logic_vector(unsigned(freq(1)) + unsigned(waveforms(1)));
+                freqs(0) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(0)), bits+3))) + resize(signed(signed_waveforms(1)), bits+3));
+                freqs(1) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(1)), bits+3))) + resize(signed(signed_waveforms(1)), bits+3));
                 output_int <= waveforms(0) & '0';
             when "101" => 
-                freqs(0) <= std_logic_vector(unsigned(freq(0)) + unsigned(waveforms(0)));
-                freqs(1) <= std_logic_vector(unsigned(freq(1)) + unsigned(waveforms(1)));
+                freqs(0) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(0)), bits+3))) + resize(signed(signed_waveforms(0)), bits+3));
+                freqs(1) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(1)), bits+3))) + resize(signed(signed_waveforms(1)), bits+3));
                 output_int <= std_logic_vector(resize(unsigned(waveforms(0)), bits_voice_out) + resize(unsigned(waveforms(1)), bits_voice_out));
             when others => 
-                freqs(0) <= std_logic_vector(unsigned(freq(0)) + unsigned(waveforms(0)) + unsigned(waveforms(1)));
-                freqs(1) <= std_logic_vector(unsigned(freq(1)) + unsigned(waveforms(1)));
-                output_int <= waveforms(0) & '0';
+                freqs(0) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(0)), bits+3))) + resize(signed(signed_waveforms(1)), bits+3));
+                freqs(1) <= std_logic_vector(signed(std_logic_vector(resize(unsigned(freq(1)), bits+3))) + resize(signed(signed_waveforms(0)), bits+3));
+                output_int <= std_logic_vector(resize(unsigned(waveforms(0)), bits_voice_out) + resize(unsigned(waveforms(1)), bits_voice_out));
           end case;  
         
 --        for i in 0 to oscs-1 loop

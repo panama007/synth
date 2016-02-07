@@ -19,6 +19,7 @@ package my_constants is
     constant n      : integer := 20;
 
     type freqs_array        is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
+    type freqs_array2       is array(0 to oscs-1) of std_logic_vector(bits+2 downto 0);
     type waveforms_array    is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
     type rotaries_array     is array(0 to oscs-1) of std_logic_vector(1 downto 0);
     type waves_array        is array(0 to oscs-1) of std_logic_vector(1 downto 0);
