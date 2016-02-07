@@ -1,9 +1,35 @@
+-------------------------------------------------------------------
+--
+-- Envelope-
+--      This entity takes a signal and multiplies it by an ADSR envelope.
+--      Currently the envelope is precalculated, 1 ms for each of
+--      A,D,R. The attack goes from 0 to full range, the decay
+--      falls to the halfpoint, the release falls to 0. All linearly.
+--
+-------------------------------------------------------------------
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.all;
 
 use work.my_constants.all;
+
+-------------------------------------------------------------------
+--
+-- generics:
+--      bits-
+--          Number of bits the input/output has.
+-- port:
+--      full_signal-
+--          unadultered input signal, should be full range (0 to 2^bits).
+--      clk-
+--          should use sampling clock, since we are processing samples
+--          and only need 1 clock for each.
+--      button-
+--          button to control the ADSR sequence.
+--      env_signal-
+--          output signal, input signal * ADSR waveform.
+-------------------------------------------------------------------
 
 entity envelope is
     generic (bits       : integer := 16);
@@ -14,14 +40,23 @@ entity envelope is
 end envelope;
 
 architecture Behavioral of envelope is
+    -- based off current constants, this is the number of samples we
+    --      have in 1 millisecond.
     constant ms : integer := 391;
+    -- goes from 0 to full in ~391 clocks
     constant slope1 : unsigned(11 downto 0) := to_unsigned(10, 12);
+    -- goes from full to sustain in ~391 clocks
     constant slope2 : unsigned(11 downto 0) := to_unsigned(5, 12);
+    -- goes from sustain to 0 in ~391 clocks
     constant slope3 : unsigned(11 downto 0) := to_unsigned(5, 12);
 
+    -- states to see what section we're in.
     signal state : std_logic_vector(2 downto 0);
+    -- signal * ADSR (factor).
     signal temp_signal : unsigned(bits-1+12 downto 0);
+    -- the ADSR waveform, kinda like a sharkfin, but more linear.
     signal factor : unsigned(11 downto 0);
+    
     signal cntr : integer range 0 to ms;
     
     signal old_button : std_logic := '0';
