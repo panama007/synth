@@ -8,6 +8,7 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
+use IEEE.NUMERIC_STD.all;
 use IEEE.MATH_REAL.all;
 
 
@@ -54,7 +55,7 @@ use IEEE.MATH_REAL.all;
 
 package my_constants is
     constant oscs   : integer := 2;
-    constant voices : integer := 12; 
+    constant voices : integer := 5; 
     
     constant bits   : integer := 16;
     constant bits_voice_out : integer := bits + integer(ceil(log2(real(oscs))));
@@ -65,6 +66,7 @@ package my_constants is
     type waveforms_array    is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
     type rotaries_array     is array(natural range <>) of std_logic_vector(1 downto 0);
     type waves_array        is array(0 to oscs-1) of std_logic_vector(1 downto 0);
+    type mod_index_array    is array(0 to oscs-1) of unsigned(3 downto 0);
     --type angles_array       is array(0 to oscs-1) of std_logic_vector(n-1 downto 0);
     
 end package my_constants;

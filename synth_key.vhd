@@ -57,7 +57,7 @@ entity synth_key is
     port    (clk        : in std_logic;
              divided_clk: in std_logic;
              button     : in std_logic;
-             mod_index  : in std_logic_vector(3 downto 0);
+             mod_index  : in mod_index_array;
              wave       : in waves_array;
              freq       : in freqs_array;
              mode       : in std_logic_vector(2 downto 0);
@@ -65,12 +65,14 @@ entity synth_key is
 end synth_key;
 
 architecture Behavioral of synth_key is
+    type temp_ar is array (0 to oscs-1) of std_logic_vector(bits+4+5 downto 0);
+    
     -- signal to hold each oscillator's output
     signal waveforms : waveforms_array;
     -- signal after converting those waveforms from unsigned to signed
     signal signed_waveforms : waveforms_array;
     -- temp signal used in the conversion from unsigned to signed
-    signal temp      : std_logic_vector(bits+4+4 downto 0);
+    signal temp      : temp_ar;
     -- internal output, so we can register it
     signal output_int: std_logic_vector(bits_voice_out-1 downto 0);
     
@@ -80,8 +82,8 @@ begin
     
         unsigned2signed : for i in 0 to oscs-1 generate
             -- treat mod_index like a 4 bit number between 0 and 1 (or 15/16)
-            temp <= mod_index*(signed(resize(unsigned(waveforms(i)), bits+1+4)) - ("01" & (bits-2+4 downto 0 => '0')))
-            signed_waveforms(i) <= std_logic_vector(temp(temp'left downto temp'left-bits+1));
+            temp(i) <= std_logic_vector(signed(resize(unsigned(mod_index(i)),5))*(signed(resize(unsigned(waveforms(i)), bits+1+4)) - to_signed(2**(bits+3), bits+5)));
+            signed_waveforms(i) <= std_logic_vector(temp(i)(temp(i)'left downto temp(i)'left-bits+1));
         end generate unsigned2signed;
 
     

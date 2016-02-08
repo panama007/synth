@@ -30,7 +30,7 @@ use ieee.numeric_std.all;
 --      CORDIC_clk-
 --          system clock, giving the CORDIC entity time to calculate
 --          each sample.
---      button-
+--      reset-
 --          button triggering the sound, used to reset the counter
 --          so we get the same sound each time.
 --      output-
@@ -44,7 +44,7 @@ entity osc is
               wave  : in  std_logic_vector (1 downto 0);
               clk   : in  std_logic;
               CORDIC_clk : in std_logic;
-              button : in std_logic;
+              reset : in std_logic;
               output: out std_logic_vector (bits-1 downto 0));
 end osc;
 
@@ -52,8 +52,8 @@ architecture Behavioral of osc is
     signal output_int : signed(bits-1 downto 0) := (others => '0');
     signal cos : std_logic_vector(bits-1 downto 0);
     
-    -- used to see when the button is just pressed
-    signal old_button : std_logic := '0';
+    -- used to see when the reset is just pressed
+    signal old_reset : std_logic := '0';
     -- used as 'time', higher resolution than frequency, so we can just add frequency
     --      without max frequency being aliased down due to overflow.
     signal cntr: signed(n-1 downto 0) := (others => '0');
@@ -71,8 +71,8 @@ begin
     if rising_edge(clk) then
         -- move our phase/time forward by freq.
         cntr <= cntr + resize(signed(freq), n);
-        -- reset cntr when we first strike the button.
-        if button = '1' and old_button = '0' then
+        -- reset cntr when we first strike the reset.
+        if reset = '1' and old_reset = '0' then
             cntr <= (others => '0');
         end if;
     
@@ -89,7 +89,7 @@ begin
                 end if;
         end case;
         
-        old_button <= button;
+        old_reset <= reset;
     end if;
 end process;
 end Behavioral;

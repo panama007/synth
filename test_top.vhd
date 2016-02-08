@@ -58,7 +58,6 @@ architecture Behavioral of test_top is
     type voice_outputs_array is array (0 to voices-1) of std_logic_vector(bits_voice_out-1 downto 0);
     type osc_freqs_array is array (0 to voices-1) of freqs_array;
     type octaves_array is array (0 to oscs-1) of integer range 0 to bits-1;
-    type mod_index_array is array (0 to oscs-1) of unsigned(3 downto 0);
 
     signal waveform     : std_logic_vector(bits2-1 downto 0);   -- the output being fed into DAC.
     signal to_disp      : std_logic_vector(bits-1 downto 0);    -- number to display on 4-digit 7-segment LCD.
@@ -72,7 +71,7 @@ architecture Behavioral of test_top is
     signal db_buttons   : std_logic_vector(voices-1 downto 0);  -- debounced buttons
     signal mod_index    : mod_index_array;                      -- array of modulation indeces, one per osc
     
-    signal up_down      : rotaries_array;                       -- up/down output of rotary entity
+    signal up_down      : rotaries_array(0 to 4);                       -- up/down output of rotary entity
     
 
     constant div : integer := 8;                                -- 100 MHz / 2^div = Fs
@@ -95,7 +94,7 @@ begin
     -- control the FM patch with the top 3 switches.
     mode <= switches(7 downto 5);
     -- choose what to display.
-    to_disp <= "0000" & buttons;
+    to_disp <= "00000000000" & buttons;
    
     -- for each oscillator, use 2 switches to control the waveform (sin, saw...)
     wave_controls : for i in 0 to oscs-1 generate
@@ -124,19 +123,18 @@ begin
         VC : entity work.synth_key
             generic map (bits => bits, oscs => oscs)    
             port map (freq => osc_freqs(i), wave => wave, divided_clk => divided_clk, output => voice_outputs(i), 
-                      clk => clk, start => db_buttons(i), mode => mode, mod_index => std_logic_vector(mod_index(i)));
+                      clk => clk, button => db_buttons(i), mode => mode, mod_index => mod_index);
         
         -- amplitude envelope for the voice output, synced to button press.
         ENV : entity work.envelope
             generic map (bits => bits_voice_out)
-            port map (full_signal => voice_outputs(i), clk => divided_clk, env_signal => envelope_outputs(i));
+            port map (full_signal => voice_outputs(i), clk => divided_clk, env_signal => envelope_outputs(i), button => db_buttons(i));
             
     end generate VCS;    
         
     -- instantiate a rotary decoder for each rotary encoder.
     rots : for i in 0 to 4 generate    
         ROT : entity work.rotary
-            generic map (bits => bits)
             port map (AB => rotaries(i), clk => clk, up_down => up_down(i));
     end generate rots;
         
@@ -171,7 +169,7 @@ end process;
 --      I.E. first page is frequency+mod index, second page is ADSR, etc
 process (clk)
 begin
-    if rising_clock(clk) then
+    if rising_edge(clk) then
         case up_down(0) is
             -- down is high, up is low, decrease quantity
             when "01" =>
@@ -205,7 +203,7 @@ begin
                     mod_index(0) <= mod_index(0) - 1;
                 end if;
             when "10" =>
-                if mod_index(0) < 0xF then
+                if mod_index(0) < 15 then
                     mod_index(0) <= mod_index(0) + 1;
                 end if;
             when others => mod_index(0) <= mod_index(0);
@@ -217,7 +215,7 @@ begin
                     mod_index(1) <= mod_index(1) - 1;
                 end if;
             when "10" =>
-                if mod_index(1) < 0xF then
+                if mod_index(1) < 15 then
                     mod_index(1) <= mod_index(1) + 1;
                 end if;
             when others => mod_index(1) <= mod_index(1);

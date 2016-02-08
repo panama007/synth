@@ -90,6 +90,7 @@ begin
                     factor <= factor - slope2;
                 else
                     state <= "011";
+                end if;
             when "011" =>       -- in sustain
                 factor <= factor;
                 if button = '0' and old_button = '1' then
