@@ -52,17 +52,17 @@ architecture Behavioral of envelope is
 --    constant slope3 : unsigned(11 downto 0) := to_unsigned(5, 12);
     constant min : integer := 390;
     constant max : integer := 390000;
-    type ar is array of real;
-
-    function gen_exp(res : integer)
-        return real is
-            variable exp : real := 1.0;
-    begin
-        for i in 0 to iters-1 loop
-            run_prod := run_prod * (1.0 / sqrt(1.0 + 2.0 ** (-2 * i)));
-        end loop;
-        return exp;
-    end gen_K; 
+--    type ar is array of real;
+--
+--    function gen_exp(res : integer)
+--        return real is
+--            variable exp : real := 1.0;
+--    begin
+--        for i in 0 to iters-1 loop
+--            run_prod := run_prod * (1.0 / sqrt(1.0 + 2.0 ** (-2 * i)));
+--        end loop;
+--        return exp;
+--    end gen_K; 
 
     -- states to see what section we're in.
     signal state : std_logic_vector(2 downto 0);
