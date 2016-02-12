@@ -71,7 +71,15 @@ architecture Behavioral of test_top is
     signal db_buttons   : std_logic_vector(voices-1 downto 0);  -- debounced buttons
     signal mod_index    : mod_index_array;                      -- array of modulation indeces, one per osc
     
+    signal attack       : unsigned(ADSR_res-1 downto 0);
+    signal decay        : unsigned(ADSR_res-1 downto 0);
+    signal sustain      : unsigned(ADSR_res-1 downto 0);
+    signal release      : unsigned(ADSR_res-1 downto 0);
+    signal controls     : controls_array;
+    
     signal up_down      : rotaries_array(0 to 4);                       -- up/down output of rotary entity
+    
+    signal page         : std_logic := '0';
     
 
     constant div : integer := 8;                                -- 100 MHz / 2^div = Fs
@@ -94,7 +102,12 @@ begin
     -- control the FM patch with the top 3 switches.
     mode <= switches(7 downto 5);
     -- choose what to display.
-    to_disp <= "00000000000" & buttons;
+    to_disp <= std_logic_vector(attack) & std_logic_vector(decay) & std_logic_vector(sustain) & std_logic_vector(release);--(15 downto voices => '0') & buttons;
+    
+    controls(0) <= attack;
+    controls(1) <= decay;
+    controls(2) <= sustain;
+    controls(3) <= release;
    
     -- for each oscillator, use 2 switches to control the waveform (sin, saw...)
     wave_controls : for i in 0 to oscs-1 generate
@@ -128,7 +141,7 @@ begin
         -- amplitude envelope for the voice output, synced to button press.
         ENV : entity work.envelope
             generic map (bits => bits_voice_out)
-            port map (full_signal => voice_outputs(i), clk => divided_clk, env_signal => envelope_outputs(i), button => db_buttons(i));
+            port map (full_signal => voice_outputs(i), clk => divided_clk, env_signal => envelope_outputs(i), button => db_buttons(i), controls => controls);
             
     end generate VCS;    
         
@@ -170,55 +183,118 @@ end process;
 process (clk)
 begin
     if rising_edge(clk) then
-        case up_down(0) is
-            -- down is high, up is low, decrease quantity
-            when "01" =>
-                if octave(0) > 0 then
-                    octave(0) <= octave(0) - 1;
-                end if;
-            -- up is high, down is low, increase quantity
-            when "10" =>
-                if octave(0) < bits-1 then
-                    octave(0) <= octave(0) + 1;
-                end if;
-            -- quantity is unchanged
-            when others => octave(0) <= octave(0);
+        case page is
+            when '0' => 
+                case up_down(0) is
+                    -- down is high, up is low, decrease quantity
+                    when "01" =>
+                        if octave(0) > 0 then
+                            octave(0) <= octave(0) - 1;
+                        end if;
+                    -- up is high, down is low, increase quantity
+                    when "10" =>
+                        if octave(0) < bits-1 then
+                            octave(0) <= octave(0) + 1;
+                        end if;
+                    -- quantity is unchanged
+                    when others => octave(0) <= octave(0);
+                end case;
+                
+                case up_down(1) is
+                    when "01" =>
+                        if octave(1) > 0 then
+                            octave(1) <= octave(1) - 1;
+                        end if;
+                    when "10" =>
+                        if octave(1) < bits-1 then
+                            octave(1) <= octave(1) + 1;
+                        end if;
+                    when others => octave(1) <= octave(1);
+                end case;
+                
+                case up_down(2) is
+                    when "01" =>
+                        if mod_index(0) > 0 then
+                            mod_index(0) <= mod_index(0) - 1;
+                        end if;
+                    when "10" =>
+                        if mod_index(0) < 15 then
+                            mod_index(0) <= mod_index(0) + 1;
+                        end if;
+                    when others => mod_index(0) <= mod_index(0);
+                end case;
+                
+                case up_down(3) is
+                    when "01" =>
+                        if mod_index(1) > 0 then
+                            mod_index(1) <= mod_index(1) - 1;
+                        end if;
+                    when "10" =>
+                        if mod_index(1) < 15 then
+                            mod_index(1) <= mod_index(1) + 1;
+                        end if;
+                    when others => mod_index(1) <= mod_index(1);
+                end case;
+                
+            when others => 
+                case up_down(0) is
+                    -- down is high, up is low, decrease quantity
+                    when "01" =>
+                        if attack > 0 then
+                            attack <= attack - 1;
+                        end if;
+                    -- up is high, down is low, increase quantity
+                    when "10" =>
+                        if attack < 15 then
+                            attack <= attack + 1;
+                        end if;
+                    -- quantity is unchanged
+                    when others => attack <= attack;
+                end case;
+                
+                case up_down(1) is
+                    when "01" =>
+                        if decay > 0 then
+                            decay <= decay - 1;
+                        end if;
+                    when "10" =>
+                        if decay < 15 then
+                            decay <= decay + 1;
+                        end if;
+                    when others => decay <= decay;
+                end case;
+                
+                case up_down(2) is
+                    when "01" =>
+                        if sustain > 0 then
+                            sustain <= sustain - 1;
+                        end if;
+                    when "10" =>
+                        if sustain < 15 then
+                            sustain <= sustain + 1;
+                        end if;
+                    when others => sustain <= sustain;
+                end case;
+                
+                case up_down(3) is
+                    when "01" =>
+                        if release > 0 then
+                            release <= release - 1;
+                        end if;
+                    when "10" =>
+                        if release < 15 then
+                            release <= release + 1;
+                        end if;
+                    when others => release <= release;
+                end case;
         end case;
         
-        case up_down(1) is
+        case up_down(4) is
             when "01" =>
-                if octave(1) > 0 then
-                    octave(1) <= octave(1) - 1;
-                end if;
+                page <= '0';
             when "10" =>
-                if octave(1) < bits-1 then
-                    octave(1) <= octave(1) + 1;
-                end if;
-            when others => octave(1) <= octave(1);
-        end case;
-        
-        case up_down(2) is
-            when "01" =>
-                if mod_index(0) > 0 then
-                    mod_index(0) <= mod_index(0) - 1;
-                end if;
-            when "10" =>
-                if mod_index(0) < 15 then
-                    mod_index(0) <= mod_index(0) + 1;
-                end if;
-            when others => mod_index(0) <= mod_index(0);
-        end case;
-        
-        case up_down(3) is
-            when "01" =>
-                if mod_index(1) > 0 then
-                    mod_index(1) <= mod_index(1) - 1;
-                end if;
-            when "10" =>
-                if mod_index(1) < 15 then
-                    mod_index(1) <= mod_index(1) + 1;
-                end if;
-            when others => mod_index(1) <= mod_index(1);
+                page <= '1';
+            when others => page <= page;
         end case;
     end if;
 end process;

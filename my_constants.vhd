@@ -55,11 +55,12 @@ use IEEE.MATH_REAL.all;
 
 package my_constants is
     constant oscs   : integer := 2;
-    constant voices : integer := 5; 
+    constant voices : integer := 2; 
     
     constant bits   : integer := 16;
     constant bits_voice_out : integer := bits + integer(ceil(log2(real(oscs))));
     constant n      : integer := 20;
+    constant ADSR_res: integer := 4;
 
     type freqs_array        is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
     type freqs_array2       is array(0 to oscs-1) of std_logic_vector(bits+2 downto 0);
@@ -67,6 +68,7 @@ package my_constants is
     type rotaries_array     is array(natural range <>) of std_logic_vector(1 downto 0);
     type waves_array        is array(0 to oscs-1) of std_logic_vector(1 downto 0);
     type mod_index_array    is array(0 to oscs-1) of unsigned(3 downto 0);
+    type controls_array     is array(0 to 3) of unsigned(ADSR_res-1 downto 0);
     --type angles_array       is array(0 to oscs-1) of std_logic_vector(n-1 downto 0);
     
 end package my_constants;
