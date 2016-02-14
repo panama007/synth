@@ -48,7 +48,9 @@ entity test_top is
            switches: in std_logic_vector(7 downto 0);
            buttons : in std_logic_vector(voices-1 downto 0);
            rotaries: in rotaries_array(0 to 4);
+           MIDI_in : in std_logic;
            speaker : out std_logic;
+           LEDS    : out std_logic_vector(7 downto 0);
            cathodes: out std_logic_vector(6 downto 0);
            anodes  : inout std_logic_vector(3 downto 0));
 end test_top;
@@ -81,9 +83,16 @@ architecture Behavioral of test_top is
     
     signal page         : std_logic := '0';
     
+    signal MIDI_rdy     : std_logic := '0';
+    signal MIDI_en      : std_logic := '0';
+    signal status, data1, data2 : std_logic_vector(6 downto 0);
+    
 
     constant div : integer := 8;                                -- 100 MHz / 2^div = Fs
-    signal ctr : unsigned(div-1 downto 0) := (others => '0');   
+    constant MIDI_div : integer := 3200;                    -- 100 MHz / 31.25 kHz
+    constant ctr_bits : integer := integer(ceil(log2(real(MIDI_div))));
+    signal ctr : unsigned(div-1 downto 0) := (others => '0');      
+    signal MIDI_ctr : unsigned(ctr_bits-1 downto 0) := (others => '0');      
     
     -- generates the 12 frequencies we use. any other frequency is one of these shifted right
     --      by some integer. Equal temperament, 2^(i/12) for i in (0,11)
@@ -99,10 +108,23 @@ architecture Behavioral of test_top is
     -- store these notes
     constant notes : ar := gen_notes(voices);
 begin
+process (clk)
+begin
+    if rising_edge(clk) and MIDI_rdy = '1' then
+        to_disp <= "1" & status & "0" & data1; 
+        --"000" & MIDI_in & "000" & MIDI_rdy & "000" & MIDI_en & "0000";
+    else
+        to_disp <= to_disp;
+    end if;
+    
+
+end process;
     -- control the FM patch with the top 3 switches.
     mode <= switches(7 downto 5);
     -- choose what to display.
-    to_disp <= std_logic_vector(attack) & std_logic_vector(decay) & std_logic_vector(sustain) & std_logic_vector(release);--(15 downto voices => '0') & buttons;
+    --to_disp <= std_logic_vector(attack) & std_logic_vector(decay) & std_logic_vector(sustain) & std_logic_vector(release);--(15 downto voices => '0') & buttons;
+    
+    LEDS <= "00000" & MIDI_rdy & MIDI_en & MIDI_in;
     
     controls(0) <= attack;
     controls(1) <= decay;
@@ -155,6 +177,9 @@ begin
     DAC : entity work.sigma_delta_DAC
         generic map (bits => bits2)
         port map (clk => clk, data_in => waveform, data_out => speaker);
+        
+    MID : entity work.MIDI
+        port map (clk => clk, enable => MIDI_en, data_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
 
 process (clk)
     variable cumsum : unsigned(bits2-1 downto 0);   -- will sum all voice outputs
@@ -162,6 +187,13 @@ begin
     -- little logic to produce the divded clock
     if rising_edge(clk) then
         ctr <= ctr + ((div-1 downto 1 => '0') & '1');
+        if MIDI_ctr = MIDI_div-1 then 
+            MIDI_ctr <= (others => '0');
+            MIDI_en <= '1';
+        else
+            MIDI_ctr <= MIDI_ctr + ((ctr_bits-1 downto 1 => '0') & '1');
+            MIDI_en <= '0';
+        end if;
     end if;
     divided_clk <= ctr(div-1);
     
