@@ -24,18 +24,20 @@ use IEEE.NUMERIC_STD.all;
 -- ports:
 --      angle-
 --          input signal, angle whose cosine we are to calculate,
---          in rads. 0000 = 0 rads, FFFF = 2*pi rads
+--          in rads. 0000 = 0 rads, FFFF = 2*pi * (2**16-1)/2**16 rads
 --      cos-
 --          output signal, cos(angle).
 -------------------------------------------------------------------
 
 
 entity CORDIC is
-    generic ( bits : integer := 16;
-              iters: integer := 16);
+    generic ( bits_in : integer := 16;
+              bits_out: integer := 16;
+              iters   : integer := 16);
     port    ( clk   : in  std_logic;
-              angle : in  std_logic_vector(bits-1 downto 0);
-              cos: out std_logic_vector(bits-1 downto 0));
+              start : in  std_logic;
+              angle : in  signed(bits_in-1 downto 0);
+              cos   : out signed(bits_out-1 downto 0));
 end CORDIC;
 
 architecture Behavioral of CORDIC is
@@ -70,90 +72,92 @@ architecture Behavioral of CORDIC is
     constant K : real := gen_K(iters);
     constant angles : ar := gen_angles(iters);
     
-    -- estimate for sin/cos we're updating ever iteration, along with the
-    --      angle. I.E. x_i = cos(angle_i)
-    signal x_i : signed(iters+1 downto 0);
-    signal y_i : signed(iters+1 downto 0);
-    signal angle_i : signed(iters-1 downto 0);
+    type cordic_record is record
+        x_i : signed(bits_out-1 downto 0);
+        y_i : signed(bits_out-1 downto 0);
+        angle_i : signed(bits_in-1 downto 0);
+        angle_int : signed(bits_in-1 downto 0);
+        cos_int : signed(bits_out-1 downto 0);
+        iter : integer range 0 to iters;
+        start : std_logic;
+        quadrant : std_logic_vector(1 downto 0);
+    end record;
     
-    -- internal output, just to register it, and use signed.
-    signal cos_int : signed(iters-1 downto 0);
-    -- latched angle input, so we don't change what we're calculating in the
-    --      middle of a calculation.
-    signal angle_int : signed(bits-1 downto 0);
-    -- quadrant signal to correct CORDIC, since it only works in (-pi/2,pi/2).
-    signal quadrant : std_logic_vector(1 downto 0);
+    signal rin : cordic_record;
+    signal r : cordic_record  := (x_i => (others => '0'),
+                                       y_i => (others => '0'),
+                                       angle_i => (others => '0'),
+                                       angle_int => (others => '0'),
+                                       cos_int => (others => '0'),
+                                       quadrant => (others => '0'),
+                                       iter => 0,
+                                       start => '0');
 begin
-    -- take top "bits" bits of cos_int and convert to slv.
-    cos <= std_logic_vector(cos_int(iters-1 downto iters-bits));
-    
-process (clk)
+
+process (r, angle, start)
     -- iteration counter, we need to index into precalculated array of
     --      angles, do some initialization, and latch the output when it's
     --      done.
-    variable iter : integer range 0 to iters := 0;
+    variable v : cordic_record;
 begin
-    if rising_edge(clk) then
-        -- done with iterations, time to output the result.
-        if iter = iters then
-            -- a correction I tried to fix some overflow I noticed. It
-            --      doesn't work 100% correctly. There are occasional
-            --      overflows I've noticed, but haven't gotten around to fixing
-            --      yet.
-            if x_i(iters-1) = '1' then
-                case quadrant is
-                    when "00" => cos_int <= (others => '1');
-                    when "01" => cos_int <= '0' & (bits-2 downto 0 => '1');
-                    when "10" => cos_int <= (others => '0');
-                    when others => cos_int <= '0' & (bits-2 downto 0 => '1');
-                end case;
-            else
-                case quadrant is
-                    when "00" => cos_int <= '1' & x_i(bits-2 downto 0);
-                    when "01" => cos_int <= '0' & (-(x_i(bits-2 downto 0)));
-                    when "10" => cos_int <= '0' & (-(x_i(bits-2 downto 0)));
-                    when others => cos_int <= '1' & x_i(bits-2 downto 0);
-                end case;
-            end if;
-            
-            iter := 0; -- start calculating the next one.
-        end if;
-    
-        -- initialization
-        if iter = 0 then
-            angle_i <= (others => '0');
-            -- instead of multiplying by K at the end, we can just start off
-            --      with K instead of 1.
-            x_i <= to_signed(integer(K * real(2**(iters-1))), iters+2);
-            y_i <= (others => '0');
-            
-            quadrant <= angle(bits-1 downto bits-2); -- divide provided angle into 4 quadrants
-            case quadrant is
-                -- shift angle down to (-pi/2, pi/2)
-                when "00" => angle_int <= signed("00" & angle(bits-3 downto 0));
-                when "01" => angle_int <= signed('0' & angle(bits-2 downto 0)) - ('0' & (bits-2 downto 0 => '1'));
-                when "10" => angle_int <= signed("00" & angle(bits-3 downto 0));
-                when others => angle_int <= signed('0' & angle(bits-2 downto 0)) - ('0' & (bits-2 downto 0 => '1'));
-            end case;
+    v := r; v.iter := r.iter + 1; v.start := start;
+
+    -- done with iterations, time to output the result.
+    if r.iter = iters then
+        if r.quadrant = "00" or r.quadrant = "11" then
+            v.cos_int := r.x_i;
         else
-            -- if we are below the requested angle, add the next angle in our precalculated array, and
-            --      adjust x and y accordingly.
-            if angle_i < signed(angle_int) then
-                angle_i <= angle_i + to_signed(integer(angles(iter-1) * real(2**(iters-1))), iters);
-                x_i <= x_i - shift_right(y_i, iter-1);
-                y_i <= y_i + shift_right(x_i, iter-1);
-            -- if we are above the requested angle, subtract the next angle in our precalculated array, and
-            --      adjust x and y accordingly.
-            else
-                angle_i <= angle_i - to_signed(integer(angles(iter-1) * real(2**(iters-1))), iters);
-                x_i <= x_i + shift_right(y_i, iter-1);
-                y_i <= y_i - shift_right(x_i, iter-1);
-            end if;
+            v.cos_int := -r.x_i;
+        end if;   
+        if start = '1' and r.start = '0' then
+            v.iter := 0; -- start calculating the next one.
+        else
+            v.iter := r.iter;
         end if;
         
-        iter := iter + 1;
+        
+    elsif r.iter = 0 then
+        v.angle_i := (others => '0');
+        -- instead of multiplying by K at the end, we can just start off
+        --      with K instead of 1.
+        v.x_i := to_signed(integer(K * real(2**(bits_out-1)-10)), bits_out);
+        v.y_i := (others => '0');
+        
+        v.quadrant := std_logic_vector(angle(bits_in-1 downto bits_in-2));
+         -- divide provided angle into 4 quadrants
+        case angle(bits_in-1 downto bits_in-2) is       -- quadrant
+            -- shift angle down to (-pi/2, pi/2)
+            when "00"   => v.angle_int := angle;
+            when "01"   => v.angle_int := (not angle(bits_in-1)) & angle(bits_in-2 downto 0);
+            when "10"   => v.angle_int := (not angle(bits_in-1)) & angle(bits_in-2 downto 0);
+            when others => v.angle_int := angle;
+        end case;
+    else
+        -- if we are below the requested angle, add the next angle in our precalculated array, and
+        --      adjust x and y accordingly.
+        if r.angle_i < r.angle_int then
+            v.angle_i := r.angle_i + to_signed(integer(angles(r.iter-1) * real(2**(bits_in-1)-1)), bits_in);
+            v.x_i := r.x_i - shift_right(r.y_i, r.iter-1);
+            v.y_i := r.y_i + shift_right(r.x_i, r.iter-1);
+        -- if we are above the requested angle, subtract the next angle in our precalculated array, and
+        --      adjust x and y accordingly.
+        else
+            v.angle_i := r.angle_i - to_signed(integer(angles(r.iter-1) * real(2**(bits_in-1)-1)), bits_in);
+            v.x_i := r.x_i + shift_right(r.y_i, r.iter-1);
+            v.y_i := r.y_i - shift_right(r.x_i, r.iter-1);
+        end if;
     end if;
+    
+    rin <= v;
+    cos <= r.cos_int;    
+ 
 end process;
 
+process (clk)
+begin
+    if rising_edge(clk) then
+        r <= rin;
+    end if;
+end process;
 end Behavioral;
 

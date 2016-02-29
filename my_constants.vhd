@@ -55,20 +55,39 @@ use IEEE.MATH_REAL.all;
 
 package my_constants is
     constant oscs   : integer := 2;
-    constant voices : integer := 2; 
+    constant voices : integer := 1; 
     
     constant bits   : integer := 16;
     constant bits_voice_out : integer := bits + integer(ceil(log2(real(oscs))));
+    constant bits2  : integer := bits_voice_out + integer(ceil(log2(real(voices))));
     constant n      : integer := 20;
     constant ADSR_res: integer := 4;
 
-    type freqs_array        is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
-    type freqs_array2       is array(0 to oscs-1) of std_logic_vector(bits+2 downto 0);
-    type waveforms_array    is array(0 to oscs-1) of std_logic_vector(bits-1 downto 0);
+    type freqs_array        is array(0 to oscs-1) of signed(bits-1 downto 0);
+    type freqs_array2       is array(0 to oscs-1) of signed(bits+2 downto 0);
+    type waveforms_array    is array(0 to oscs-1) of signed(bits-1 downto 0);
     type rotaries_array     is array(natural range <>) of std_logic_vector(1 downto 0);
     type waves_array        is array(0 to oscs-1) of std_logic_vector(1 downto 0);
     type mod_index_array    is array(0 to oscs-1) of unsigned(3 downto 0);
     type controls_array     is array(0 to 3) of unsigned(ADSR_res-1 downto 0);
+    
+    
+    type FM_input is record
+        mod_index  : mod_index_array;
+        wave       : waves_array;
+        freq       : freqs_array;
+        mode       : std_logic_vector(2 downto 0);
+    end record;
+    
+    type voice_input is record
+        FM_in      : FM_input;
+        synth_mode : std_logic;
+        button     : std_logic;
+    end record;
+    type voice_output is record
+        in_use     : std_logic;
+        output     : unsigned(bits_voice_out-1 downto 0);
+    end record;
     --type angles_array       is array(0 to oscs-1) of std_logic_vector(n-1 downto 0);
     
 end package my_constants;

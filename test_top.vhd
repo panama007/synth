@@ -42,8 +42,7 @@ use work.my_constants.all;
 
 
 entity test_top is
-    generic ( bits : integer := 16;
-              bits2: integer := 21);
+    generic ( bits : integer := 16);
     port ( clk     : in std_logic;
            switches: in std_logic_vector(7 downto 0);
            buttons : in std_logic_vector(voices-1 downto 0);
@@ -57,7 +56,7 @@ end test_top;
 
 architecture Behavioral of test_top is
     type ar is array (0 to voices-1) of unsigned(bits-1 downto 0);
-    type voice_outputs_array is array (0 to voices-1) of std_logic_vector(bits_voice_out-1 downto 0);
+    type voice_outputs_array is array (0 to voices-1) of unsigned(bits_voice_out-1 downto 0);
     type osc_freqs_array is array (0 to voices-1) of freqs_array;
     type octaves_array is array (0 to oscs-1) of integer range 0 to bits-1;
 
@@ -71,21 +70,21 @@ architecture Behavioral of test_top is
     signal wave         : waves_array;                          -- the type of wave for each osc. (cos/saw/square/tri)
     signal mode         : std_logic_vector(2 downto 0);         -- which FM "patch"
     signal db_buttons   : std_logic_vector(voices-1 downto 0);  -- debounced buttons
+    signal virtual_buttons   : std_logic_vector(voices-1 downto 0);
     signal mod_index    : mod_index_array;                      -- array of modulation indeces, one per osc
-    
-    signal attack       : unsigned(ADSR_res-1 downto 0);
-    signal decay        : unsigned(ADSR_res-1 downto 0);
-    signal sustain      : unsigned(ADSR_res-1 downto 0);
-    signal release      : unsigned(ADSR_res-1 downto 0);
-    signal controls     : controls_array;
+    --signal FM_in        : FM_record;
     
     signal up_down      : rotaries_array(0 to 4);                       -- up/down output of rotary entity
     
     signal page         : std_logic := '0';
+    signal test         : std_logic := '0';
+    signal test2        : std_logic_vector(bits_voice_out-1 downto 0);
     
     signal MIDI_rdy     : std_logic := '0';
     signal MIDI_en      : std_logic := '0';
-    signal status, data1, data2 : std_logic_vector(6 downto 0);
+    signal status, data1, data2 : std_logic_vector(7 downto 0);
+    
+    signal in_use       : std_logic_vector(0 to voices-1);
     
 
     constant div : integer := 8;                                -- 100 MHz / 2^div = Fs
@@ -110,26 +109,24 @@ architecture Behavioral of test_top is
 begin
 process (clk)
 begin
-    if rising_edge(clk) and MIDI_rdy = '1' then
-        to_disp <= "1" & status & "0" & data1; 
-        --"000" & MIDI_in & "000" & MIDI_rdy & "000" & MIDI_en & "0000";
-    else
-        to_disp <= to_disp;
+    if rising_edge(clk) then
+        if MIDI_rdy = '1' then
+            --to_disp <= status & data2; 
+            virtual_buttons(0) <= '1';
+        else
+            virtual_buttons(0) <= '0';
+        end if;
     end if;
     
 
 end process;
     -- control the FM patch with the top 3 switches.
     mode <= switches(7 downto 5);
-    -- choose what to display.
-    --to_disp <= std_logic_vector(attack) & std_logic_vector(decay) & std_logic_vector(sustain) & std_logic_vector(release);--(15 downto voices => '0') & buttons;
-    
-    LEDS <= "00000" & MIDI_rdy & MIDI_en & MIDI_in;
-    
-    controls(0) <= attack;
-    controls(1) <= decay;
-    controls(2) <= sustain;
-    controls(3) <= release;
+    LEDS <= "00" & db_buttons(0) & virtual_buttons(0) & test & MIDI_rdy & MIDI_en & MIDI_in;
+    to_disp <= test2(test2'left downto test2'left-15);
+   
+    --virtual_buttons(0) <= status = X"90" and data2 /= (7 downto 0 => '0') and MIDI_rdy = '1';
+   
    
     -- for each oscillator, use 2 switches to control the waveform (sin, saw...)
     wave_controls : for i in 0 to oscs-1 generate
@@ -151,20 +148,21 @@ end process;
         -- calculate the actual frequencies for each key. As mentioned, these will just be
         --      the precomputed 12, shifted down by some number of octaves.
         loop1 : for j in 0 to oscs-1 generate
-            osc_freqs(i)(j) <= std_logic_vector(shift_right(notes(i), bits-1-octave(j)));
+            osc_freqs(i)(j) <= signed(std_logic_vector(shift_right(notes(i), bits-1-octave(j))));
         end generate loop1;
     
         -- the voice, the synth key, the heart of the synth
-        VC : entity work.synth_key
+        VC : entity work.voice
             generic map (bits => bits, oscs => oscs)    
-            port map (freq => osc_freqs(i), wave => wave, divided_clk => divided_clk, output => voice_outputs(i), 
-                      clk => clk, button => db_buttons(i), mode => mode, mod_index => mod_index);
+            port map (voice_in.FM_in.freq => osc_freqs(i), voice_in.FM_in.wave => wave, voice_in.FM_in.mode => mode, voice_in.FM_in.mod_index => mod_index,
+                      voice_in.button => virtual_buttons(i),  voice_in.synth_mode => switches(4), clk => clk, div_clk => divided_clk, test=>test2,
+                      voice_out.output => envelope_outputs(i), voice_out.in_use => in_use(i));
         
         -- amplitude envelope for the voice output, synced to button press.
-        ENV : entity work.envelope
-            generic map (bits => bits_voice_out)
-            port map (full_signal => voice_outputs(i), clk => divided_clk, env_signal => envelope_outputs(i), button => db_buttons(i), controls => controls);
-            
+--        ENV : entity work.envelope
+--            generic map (bits => bits_voice_out)
+--            port map (full_signal => voice_outputs(i), clk => divided_clk, env_signal => envelope_outputs(i), button => db_buttons(i), controls => controls);
+--            
     end generate VCS;    
         
     -- instantiate a rotary decoder for each rotary encoder.
@@ -178,20 +176,20 @@ end process;
         generic map (bits => bits2)
         port map (clk => clk, data_in => waveform, data_out => speaker);
         
-    MID : entity work.MIDI
-        port map (clk => clk, enable => MIDI_en, data_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
+    MID : entity work.MIDI_decoder
+        port map (clk => clk, enable => MIDI_en, command_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
 
 process (clk)
     variable cumsum : unsigned(bits2-1 downto 0);   -- will sum all voice outputs
 begin
     -- little logic to produce the divded clock
     if rising_edge(clk) then
-        ctr <= ctr + ((div-1 downto 1 => '0') & '1');
+        ctr <= ctr + 1;
         if MIDI_ctr = MIDI_div-1 then 
             MIDI_ctr <= (others => '0');
             MIDI_en <= '1';
         else
-            MIDI_ctr <= MIDI_ctr + ((ctr_bits-1 downto 1 => '0') & '1');
+            MIDI_ctr <= MIDI_ctr + 1;
             MIDI_en <= '0';
         end if;
     end if;
@@ -201,7 +199,7 @@ begin
     -- add up all voice outputs
     cumsum := (others => '0');
     for i in 0 to voices-1 loop
-        cumsum := cumsum + resize(unsigned(envelope_outputs(i)), bits2);
+        cumsum := cumsum + resize(envelope_outputs(i), bits2);
     end loop;
     waveform <= std_logic_vector(cumsum);
     
@@ -215,118 +213,55 @@ end process;
 process (clk)
 begin
     if rising_edge(clk) then
-        case page is
-            when '0' => 
-                case up_down(0) is
-                    -- down is high, up is low, decrease quantity
-                    when "01" =>
-                        if octave(0) > 0 then
-                            octave(0) <= octave(0) - 1;
-                        end if;
-                    -- up is high, down is low, increase quantity
-                    when "10" =>
-                        if octave(0) < bits-1 then
-                            octave(0) <= octave(0) + 1;
-                        end if;
-                    -- quantity is unchanged
-                    when others => octave(0) <= octave(0);
-                end case;
-                
-                case up_down(1) is
-                    when "01" =>
-                        if octave(1) > 0 then
-                            octave(1) <= octave(1) - 1;
-                        end if;
-                    when "10" =>
-                        if octave(1) < bits-1 then
-                            octave(1) <= octave(1) + 1;
-                        end if;
-                    when others => octave(1) <= octave(1);
-                end case;
-                
-                case up_down(2) is
-                    when "01" =>
-                        if mod_index(0) > 0 then
-                            mod_index(0) <= mod_index(0) - 1;
-                        end if;
-                    when "10" =>
-                        if mod_index(0) < 15 then
-                            mod_index(0) <= mod_index(0) + 1;
-                        end if;
-                    when others => mod_index(0) <= mod_index(0);
-                end case;
-                
-                case up_down(3) is
-                    when "01" =>
-                        if mod_index(1) > 0 then
-                            mod_index(1) <= mod_index(1) - 1;
-                        end if;
-                    when "10" =>
-                        if mod_index(1) < 15 then
-                            mod_index(1) <= mod_index(1) + 1;
-                        end if;
-                    when others => mod_index(1) <= mod_index(1);
-                end case;
-                
-            when others => 
-                case up_down(0) is
-                    -- down is high, up is low, decrease quantity
-                    when "01" =>
-                        if attack > 0 then
-                            attack <= attack - 1;
-                        end if;
-                    -- up is high, down is low, increase quantity
-                    when "10" =>
-                        if attack < 15 then
-                            attack <= attack + 1;
-                        end if;
-                    -- quantity is unchanged
-                    when others => attack <= attack;
-                end case;
-                
-                case up_down(1) is
-                    when "01" =>
-                        if decay > 0 then
-                            decay <= decay - 1;
-                        end if;
-                    when "10" =>
-                        if decay < 15 then
-                            decay <= decay + 1;
-                        end if;
-                    when others => decay <= decay;
-                end case;
-                
-                case up_down(2) is
-                    when "01" =>
-                        if sustain > 0 then
-                            sustain <= sustain - 1;
-                        end if;
-                    when "10" =>
-                        if sustain < 15 then
-                            sustain <= sustain + 1;
-                        end if;
-                    when others => sustain <= sustain;
-                end case;
-                
-                case up_down(3) is
-                    when "01" =>
-                        if release > 0 then
-                            release <= release - 1;
-                        end if;
-                    when "10" =>
-                        if release < 15 then
-                            release <= release + 1;
-                        end if;
-                    when others => release <= release;
-                end case;
+        case up_down(0) is
+            -- down is high, up is low, decrease quantity
+            when "01" =>
+                if octave(0) > 0 then
+                    octave(0) <= octave(0) - 1;
+                end if;
+            -- up is high, down is low, increase quantity
+            when "10" =>
+                if octave(0) < bits-1 then
+                    octave(0) <= octave(0) + 1;
+                end if;
+            -- quantity is unchanged
+            when others => octave(0) <= octave(0);
         end case;
         
-        case up_down(4) is
+        case up_down(1) is
             when "01" =>
-                page <= '0';
+                if octave(1) > 0 then
+                    octave(1) <= octave(1) - 1;
+                end if;
             when "10" =>
-                page <= '1';
-            when others => page <= page;
+                if octave(1) < bits-1 then
+                    octave(1) <= octave(1) + 1;
+                end if;
+            when others => octave(1) <= octave(1);
+        end case;
+        
+        case up_down(2) is
+            when "01" =>
+                if mod_index(0) > 0 then
+                    mod_index(0) <= mod_index(0) - 1;
+                end if;
+            when "10" =>
+                if mod_index(0) < 15 then
+                    mod_index(0) <= mod_index(0) + 1;
+                end if;
+            when others => mod_index(0) <= mod_index(0);
+        end case;
+        
+        case up_down(3) is
+            when "01" =>
+                if mod_index(1) > 0 then
+                    mod_index(1) <= mod_index(1) - 1;
+                end if;
+            when "10" =>
+                if mod_index(1) < 15 then
+                    mod_index(1) <= mod_index(1) + 1;
+                end if;
+            when others => mod_index(1) <= mod_index(1);
         end case;
     end if;
 end process;

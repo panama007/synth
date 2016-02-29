@@ -8,7 +8,9 @@ entity MIDI_tb is
 end MIDI_tb;
 
 architecture TB_ARCHITECTURE of MIDI_tb is
-    type test_signals is array (0 to 2) of std_logic_vector(0 to 29);
+    --type test_signals is array (integer range <>) of std_logic_vector(integer range <>);
+    type test_signals3 is array (0 to 2) of std_logic_vector(0 to 29);
+    type test_signals2 is array (0 to 2) of std_logic_vector(0 to 19);
     --type intertest_times is array (0 to 2) of integer;
     
     
@@ -33,9 +35,13 @@ architecture TB_ARCHITECTURE of MIDI_tb is
 
     constant  clk_period:  time    := 20 ns;
     
-    constant tests : test_signals := ('0'& X"90" & '1' & '0'& X"3C" & '1' & '0'& X"60" & '1',
-                                      '0'& X"80" & '1' & '0'& X"45" & '1' & '0'& X"80" & '1',
-                                      '0'& X"A0" & '1' & '0'& X"54" & '1' & '0'& X"10" & '1');
+    constant tests1 : test_signals3 := ('0'& X"90" & '1' & '0'& X"3C" & '1' & '0'& X"60" & '1',
+                                        '0'& X"80" & '1' & '0'& X"45" & '1' & '0'& X"80" & '1',
+                                        '0'& X"A0" & '1' & '0'& X"54" & '1' & '0'& X"10" & '1');
+                                                        
+    constant tests2 : test_signals2 := ('0'& X"3C" & '1' & '0'& X"60" & '1',
+                                        '0'& X"45" & '1' & '0'& X"80" & '1',
+                                        '0'& X"54" & '1' & '0'& X"10" & '1');
     
 begin
 
@@ -54,12 +60,12 @@ begin
 
     begin  -- of stimulus process
         -- run the process that generates the random inputs/outputs 
-        for j in tests'range loop
+        for j in tests1'range loop
             
-            for  i  in  0 to 29  loop
+            for  i  in  tests1(1)'range  loop
                 -- drive the inputs
                 MIDI_en <= '1';
-                MIDI_in <= tests(j)(i);
+                MIDI_in <= tests1(j)(i);
                 
                 wait for clk_period;
             end loop;
@@ -69,11 +75,38 @@ begin
                 report "Data Not Ready Error"
                 severity ERROR;
                 
-            assert(status = tests(j)(2 to 8))
+            assert(status = tests1(j)(2 to 8))
                 report "Status Error"
                 severity ERROR;
                 
-            assert(data1 = tests(j)(12 to 18))
+            assert(data1 = tests1(j)(12 to 18))
+                report "Data1 Error"
+                severity ERROR;
+            
+            wait for j*clk_period;
+
+        end loop;
+        
+        for j in tests2'range loop
+            
+            for  i  in  tests2(1)'range  loop
+                -- drive the inputs
+                MIDI_en <= '1';
+                MIDI_in <= tests2(j)(i);
+                
+                wait for clk_period;
+            end loop;
+            MIDI_en <= '0';
+            
+            assert(data_rdy = '1')
+                report "Data Not Ready Error"
+                severity ERROR;
+                
+            assert(status = tests1(tests1'right)(2 to 8))
+                report "Status Error"
+                severity ERROR;
+                
+            assert(data1 = tests2(j)(2 to 8))
                 report "Data1 Error"
                 severity ERROR;
             
