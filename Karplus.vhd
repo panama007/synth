@@ -17,7 +17,7 @@ entity Karplus is
 end Karplus;
 
 architecture Behavioral of Karplus is
-    type delay_line is array (0 to p-1) of unsigned(bits-1 downto 0);
+    type delay_line is array (0 to p-1) of std_logic_vector(bits-1 downto 0);
     type state_type is (off, resetting, running);
     
     type KS_record is record
@@ -39,7 +39,7 @@ architecture Behavioral of Karplus is
     signal prev1 : unsigned(bits-1 downto 0);
     --signal prev2 : unsigned(bits-1 downto 0);
     signal dampen_out : unsigned(bits-1 downto 0);
-    signal output_int : unsigned(bits-1 downto 0);
+    signal output_int : std_logic_vector(bits-1 downto 0);
     signal prev_div_clk : std_logic;
 begin
     --test <= std_logic_vector(rand_out);
@@ -49,8 +49,8 @@ begin
         generic map(bits => bits)
         port map( clk => clk, rand => rand_out); 
 
-    dampen_out <= resize(shift_right(resize(prev1, bits+1) + resize(output_int, bits+1), 1), bits);
-    output <= output_int;
+    dampen_out <= resize(shift_right(resize(prev1, bits+1) + resize(unsigned(output_int), bits+1), 1), bits);
+    output <= unsigned(output_int);
 
 process (start, r)
     variable v : KS_record;
@@ -87,19 +87,32 @@ end process;
 
 
 process (div_clk)
+    variable i : integer;
+    variable input : std_logic_vector(bits-1 downto 0);
 begin
     if rising_edge(div_clk) then
-        prev1 <= output_int;
+        prev1 <= unsigned(output_int);
+        
+        if r.state = running then
+            input := std_logic_vector(dampen_out);
+        else
+            input := rand_out;
+        end if;
+        
+        delay(r.ptr) <= input;
     
         case r.state is
             when off =>
                 output_int <= (others => '0');
             when resetting =>     
                 output_int <= (others => '0');
-                delay(r.ptr) <= unsigned(rand_out);
             when running =>
-                output_int <= delay(r.ptr-1 mod p);
-                delay(r.ptr) <= dampen_out;
+                if r.ptr = 0 then
+                    i := p-1;
+                else
+                    i := r.ptr-1;
+                end if;
+                output_int <= delay(i);
         end case;
     end if;
 end process;
