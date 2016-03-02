@@ -37,7 +37,7 @@ architecture Behavioral of Karplus is
     --signal dampen_out : unsigned(bits-1 downto 0);
     signal rand_out : std_logic_vector(bits-1 downto 0);
     signal prev1 : unsigned(bits-1 downto 0);
-    signal prev2 : unsigned(bits-1 downto 0);
+    --signal prev2 : unsigned(bits-1 downto 0);
     signal dampen_out : unsigned(bits-1 downto 0);
     signal output_int : unsigned(bits-1 downto 0);
     signal prev_div_clk : std_logic;
@@ -49,7 +49,7 @@ begin
         generic map(bits => bits)
         port map( clk => clk, rand => rand_out); 
 
-    dampen_out <= resize(shift_right(resize(prev1, bits+1) + resize(prev2, bits+1), 1), bits);
+    dampen_out <= resize(shift_right(resize(prev1, bits+1) + resize(output_int, bits+1), 1), bits);
     output <= output_int;
 
 process (start, r)
@@ -90,7 +90,6 @@ process (div_clk)
 begin
     if rising_edge(div_clk) then
         prev1 <= output_int;
-        prev2 <= prev1;
     
         case r.state is
             when off =>
@@ -99,7 +98,7 @@ begin
                 output_int <= (others => '0');
                 delay(r.ptr) <= unsigned(rand_out);
             when running =>
-                output_int <= delay(r.ptr);
+                output_int <= delay(r.ptr-1 mod p);
                 delay(r.ptr) <= dampen_out;
         end case;
     end if;
