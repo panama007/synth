@@ -4,13 +4,15 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use ieee.numeric_std.all;
 
+--use work.my_constants.all;
 
 entity Karplus is
     generic ( bits  : integer := 17;
-              p     : integer := 160);
+              p     : integer := 70);
     port    ( start : in  std_logic;
               clk, div_clk   : in  std_logic;
-              test : out std_logic_vector(bits-1 downto 0);
+              --test : out std_logic_vector(bits-1 downto 0);
+              --test2 : out unsigned(bits-1 downto 0);
               output: out unsigned(bits-1 downto 0));
 end Karplus;
 
@@ -19,66 +21,57 @@ architecture Behavioral of Karplus is
     type state_type is (off, resetting, running);
     
     type KS_record is record
-        delay : delay_line;
-        ctr : integer range 0 to p-1;
+        ctr : integer range 0 to p;
         state : state_type;
+        RW : std_logic;
+        ptr : integer range 0 to p-1;
         start : std_logic;
-        output : unsigned(bits-1 downto 0);
     end record;
     
+    signal delay : delay_line;
+    
     signal rin : KS_record;
-    signal r : KS_record := ( delay => (others => (others => '0')),
-                              state => off,
+    signal r : KS_record := ( state => off,
+                              RW => '0',
+                              ptr => 0,
                               ctr => 0,
-                              start => '0',
-                              output => (others => '0'));
-    signal dampen_out : unsigned(bits-1 downto 0);
+                              start => '0');
+    --signal dampen_out : unsigned(bits-1 downto 0);
     signal rand_out : std_logic_vector(bits-1 downto 0);
+    signal dampen_out : unsigned(bits-1 downto 0);
+    signal output_int : unsigned(bits-1 downto 0);
     signal prev_div_clk : std_logic;
 begin
-    test <= std_logic_vector(rand_out);
-    
---    NG : entity work.noise_gen
---        generic map(W => bits, u_type => 0)
---        port map( clk => div_clk, n_reset => '1', enable => '1', u_noise_out => rand_out); 
+    --test <= std_logic_vector(rand_out);
+    --test2 <= r.delay(0);
 
     NG : entity work.LFSR
         generic map(bits => bits)
         port map( clk => clk, rand => rand_out); 
 
 
-process (start, r, rand_out, dampen_out)
+process (start, r, output_int)
     variable v : KS_record;
+    --variable dampen_out : unsigned(bits-1 downto 0);
 begin
-    v := r; v.start := start;
-    
-    dampen_out <= resize(shift_right(resize(r.delay(p-1), bits+1) + resize(r.delay(p-2), bits+1), 1), bits);
+    v := r; v.start := start; v.RW := not r.RW; v.ptr := r.ptr+1 mod p;
     
     if start = '1' and r.start = '0' then
         v.state := resetting;
         v.ctr := 0;
     end if;
     
-    case r.state is
-        when off =>
-            v.output := (others => '0');
-        when resetting =>
-            v.output := (others => '0');
-            v.ctr := r.ctr + 1;
-            
-            if r.ctr > p-1 then
-                v.state := running;
-            else 
-                v.delay := unsigned(rand_out) & r.delay(0 to p-2);--to_unsigned(2**bits-1, bits) & r.delay(0 to p-2);
-            end if;  
-        when running =>
-            v.output := r.delay(0);
-            v.delay := dampen_out & r.delay(0 to p-2);
-    end case;
+    if r.state = resetting then
+        v.ctr := r.ctr + 1;
+        
+        if r.ctr > p-1 then
+            v.state := running;
+        end if;  
+    end if;
     
     rin <= v;
     
-    output <= r.output;
+    output <= output_int;
 end process;
 
 
@@ -89,6 +82,27 @@ begin
         r <= rin;
         --end if;
         --prev_div_clk <= div_clk;
+    end if;
+end process;
+
+
+process (div_clk)
+begin
+    if rising_edge(div_clk) then
+        case r.state is
+            when off =>
+                output_int <= (others => '0');
+            when resetting =>     
+                output_int <= (others => '0');
+                delay(r.ptr) <= unsigned(rand_out);
+            when running =>
+                if r.RW = '0' then
+                    dampen_out <= resize(shift_right(resize(delay(r.ptr-1 mod p), bits+1) + resize(delay(r.ptr-2 mod p), bits+1), 1), bits);
+                    output_int <= delay(r.ptr);
+                else
+                    delay(r.ptr) <= dampen_out;
+                end if;
+        end case;
     end if;
 end process;
 end Behavioral;

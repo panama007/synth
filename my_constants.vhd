@@ -71,6 +71,17 @@ package my_constants is
     type mod_index_array    is array(0 to oscs-1) of unsigned(3 downto 0);
     type controls_array     is array(0 to 3) of unsigned(ADSR_res-1 downto 0);
     
+    constant p : integer := 10;
+    type delay_line is array (0 to p-1) of unsigned(16 downto 0);
+--    type state_type is (off, resetting, running);
+--    
+--    type KS_record is record
+--        delay : delay_line;
+--        ctr : integer range 0 to p-1;
+--        state : state_type;
+--        start : std_logic;
+--        output : unsigned(16 downto 0);
+--    end record;
     
     type FM_input is record
         mod_index  : mod_index_array;

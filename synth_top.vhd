@@ -41,7 +41,7 @@ use work.my_constants.all;
 -------------------------------------------------------------------
 
 
-entity test_top is
+entity synth_top is
     generic ( bits : integer := 16);
     port ( clk     : in std_logic;
            switches: in std_logic_vector(7 downto 0);
@@ -52,9 +52,9 @@ entity test_top is
            LEDS    : out std_logic_vector(7 downto 0);
            cathodes: out std_logic_vector(6 downto 0);
            anodes  : inout std_logic_vector(3 downto 0));
-end test_top;
+end synth_top;
 
-architecture Behavioral of test_top is
+architecture Behavioral of synth_top is
     type ar is array (0 to voices-1) of unsigned(bits-1 downto 0);
     type voice_outputs_array is array (0 to voices-1) of unsigned(bits_voice_out-1 downto 0);
     type osc_freqs_array is array (0 to voices-1) of freqs_array;
@@ -155,7 +155,7 @@ end process;
         VC : entity work.voice
             generic map (bits => bits, oscs => oscs)    
             port map (voice_in.FM_in.freq => osc_freqs(i), voice_in.FM_in.wave => wave, voice_in.FM_in.mode => mode, voice_in.FM_in.mod_index => mod_index,
-                      voice_in.button => virtual_buttons(i),  voice_in.synth_mode => switches(4), clk => clk, div_clk => divided_clk, test=>test2,
+                      voice_in.button => virtual_buttons(i),  voice_in.synth_mode => switches(4), clk => clk, div_clk => divided_clk,
                       voice_out.output => envelope_outputs(i), voice_out.in_use => in_use(i));
         
         -- amplitude envelope for the voice output, synced to button press.

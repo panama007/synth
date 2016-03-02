@@ -58,7 +58,7 @@ entity voice is
              sample_rate: integer := 10**8/2**8);
     port    (voice_in   : in voice_input;
              clk,div_clk: in std_logic;
-             test       : out std_logic_vector(bits_voice_out-1 downto 0);
+             --test       : out std_logic_vector(bits_voice_out-1 downto 0);
              voice_out  : out voice_output);
 end voice;
 
@@ -91,8 +91,8 @@ begin
         port map    (FM_in=>voice_in.FM_in, clk=>clk, div_clk=>div_clk, output=>FM_output, button=>r.internal_button);
         
     KS : entity work.Karplus
-        generic map ( bits=>bits_voice_out, p=>888)
-        port map ( clk=>clk, div_clk=>div_clk, start=>r.internal_button, output=>KS_output, test=>test);
+        generic map ( bits=>bits_voice_out, p=>150)
+        port map ( clk=>clk, div_clk=>div_clk, start=>r.internal_button, output=>KS_output);
     
     --test <= std_logic_vector(KS_output);
     
