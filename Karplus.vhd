@@ -23,7 +23,6 @@ architecture Behavioral of Karplus is
     type KS_record is record
         ctr : integer range 0 to p;
         state : state_type;
-        RW : std_logic;
         ptr : integer range 0 to p-1;
         start : std_logic;
     end record;
@@ -32,12 +31,13 @@ architecture Behavioral of Karplus is
     
     signal rin : KS_record;
     signal r : KS_record := ( state => off,
-                              RW => '0',
                               ptr => 0,
                               ctr => 0,
                               start => '0');
     --signal dampen_out : unsigned(bits-1 downto 0);
     signal rand_out : std_logic_vector(bits-1 downto 0);
+    signal prev1 : unsigned(bits-1 downto 0);
+    signal prev2 : unsigned(bits-1 downto 0);
     signal dampen_out : unsigned(bits-1 downto 0);
     signal output_int : unsigned(bits-1 downto 0);
     signal prev_div_clk : std_logic;
@@ -49,12 +49,14 @@ begin
         generic map(bits => bits)
         port map( clk => clk, rand => rand_out); 
 
+    dampen_out <= resize(shift_right(resize(prev1, bits+1) + resize(prev2, bits+1), 1), bits);
+    output <= output_int;
 
-process (start, r, output_int)
+process (start, r)
     variable v : KS_record;
     --variable dampen_out : unsigned(bits-1 downto 0);
 begin
-    v := r; v.start := start; v.RW := not r.RW; v.ptr := r.ptr+1 mod p;
+    v := r; v.start := start; v.ptr := r.ptr+1 mod p;
     
     if start = '1' and r.start = '0' then
         v.state := resetting;
@@ -70,8 +72,6 @@ begin
     end if;
     
     rin <= v;
-    
-    output <= output_int;
 end process;
 
 
@@ -89,6 +89,9 @@ end process;
 process (div_clk)
 begin
     if rising_edge(div_clk) then
+        prev1 <= output_int;
+        prev2 <= prev1;
+    
         case r.state is
             when off =>
                 output_int <= (others => '0');
@@ -96,12 +99,8 @@ begin
                 output_int <= (others => '0');
                 delay(r.ptr) <= unsigned(rand_out);
             when running =>
-                if r.RW = '0' then
-                    dampen_out <= resize(shift_right(resize(delay(r.ptr-1 mod p), bits+1) + resize(delay(r.ptr-2 mod p), bits+1), 1), bits);
-                    output_int <= delay(r.ptr);
-                else
-                    delay(r.ptr) <= dampen_out;
-                end if;
+                output_int <= delay(r.ptr);
+                delay(r.ptr) <= dampen_out;
         end case;
     end if;
 end process;
