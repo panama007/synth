@@ -63,7 +63,6 @@ entity voice is
 end voice;
 
 architecture Behavioral of voice is
-    constant ctr_bits : integer := integer(ceil(log2(real(sample_rate*duration))))+1;
     type state_type is (off, playing);
 
     signal FM_output : signed(bits_voice_out-1 downto 0);
@@ -73,7 +72,6 @@ architecture Behavioral of voice is
         button : std_logic;
         internal_button : std_logic;
         state  : state_type;
-        ctr    : integer range 0 to 2**ctr_bits-1;
         output : unsigned(bits_voice_out-1 downto 0);
         in_use : std_logic;
     end record;
@@ -82,7 +80,6 @@ architecture Behavioral of voice is
     signal r : voice_record := (button => '0',
                                   internal_button => '0',
                                   state => off,
-                                  ctr => 0,
                                   output => (others => '0'),
                                   in_use => '0');
 begin
@@ -99,7 +96,7 @@ begin
 process (r, voice_in, KS_output, FM_output)
     variable v : voice_record;
 begin
-    v := r; v.ctr := r.ctr+1;
+    v := r;
 
     if r.state = playing then
         if voice_in.synth_mode = '1' then
@@ -116,12 +113,12 @@ begin
     
     case r.state is
         when off =>
-            if voice_in.button = '1' and r.button = '0' then
+            if voice_in.button = '1' then
                 v.state := playing;
             end if;
             v.internal_button := '0';
         when playing =>
-            if r.ctr = 2**(ctr_bits-1) then
+            if voice_in.button = '0' then
                 v.state := off;
             end if;
             v.internal_button := '1';

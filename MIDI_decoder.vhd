@@ -5,7 +5,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 
 entity MIDI_decoder is
-    port ( clk, enable, MIDI_in : in  std_logic;
+    port ( clk, MIDI_in : in  std_logic;
            command_rdy          : out std_logic;
            status, data1, data2 : out std_logic_vector(7 downto 0));
 end MIDI_decoder;
@@ -26,8 +26,11 @@ architecture Behavioral of MIDI_decoder is
     signal data : std_logic_vector(7 downto 0);
 begin
 
-    u0 : entity work.MIDI 
-        port map ( clk=>clk, MIDI_in=>MIDI_in, enable=>enable, data_rdy=>data_rdy, data=>data);
+--    u0 : entity work.MIDI 
+--        port map ( clk=>clk, MIDI_in=>MIDI_in, enable=>enable, data_rdy=>data_rdy, data=>data);
+    u0 : entity work.uart_receiver 
+        generic map (CLOCK_FREQUENCY => 100000.0, BAUD_RATE => 31.250)
+        port map ( clock=>clk, rx=>MIDI_in, reset=>'0', valid=>data_rdy, data=>data);
 
 process (r, data, data_rdy)
     variable v : reg_type;
@@ -80,7 +83,7 @@ end process;
 
 process (clk)
 begin
-    if rising_edge(clk) and enable='1' then
+    if rising_edge(clk) then
         r <= rin;
     end if;
 end process;

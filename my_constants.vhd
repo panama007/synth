@@ -63,7 +63,9 @@ package my_constants is
     constant n      : integer := 20;
     constant ADSR_res: integer := 4;
 
+    
     type freqs_array        is array(0 to oscs-1) of signed(bits-1 downto 0);
+    type osc_freqs_array    is array(0 to voices-1) of freqs_array;
     type freqs_array2       is array(0 to oscs-1) of signed(bits+2 downto 0);
     type waveforms_array    is array(0 to oscs-1) of signed(bits-1 downto 0);
     type rotaries_array     is array(natural range <>) of std_logic_vector(1 downto 0);

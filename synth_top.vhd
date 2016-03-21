@@ -11,6 +11,9 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use IEEE.MATH_REAL.ALL;
 
+Library UNISIM;
+use UNISIM.vcomponents.all;
+
 use work.my_constants.all;
 
 
@@ -45,19 +48,21 @@ entity synth_top is
     generic ( bits : integer := 16);
     port ( clk     : in std_logic;
            switches: in std_logic_vector(7 downto 0);
-           buttons : in std_logic_vector(voices-1 downto 0);
-           rotaries: in rotaries_array(0 to 4);
+           --buttons : in std_logic_vector(voices-1 downto 0);
+           --rotaries: in rotaries_array(0 to 4);
            MIDI_in : in std_logic;
            speaker : out std_logic;
            LEDS    : out std_logic_vector(7 downto 0);
            cathodes: out std_logic_vector(6 downto 0);
-           anodes  : inout std_logic_vector(3 downto 0));
+           anodes  : inout std_logic_vector(3 downto 0);
+           hsync, vsync : out std_logic;
+           R, G : out std_logic_vector(2 downto 0);
+           B : out std_logic_vector(1 downto 0));
 end synth_top;
 
 architecture Behavioral of synth_top is
-    type ar is array (0 to voices-1) of unsigned(bits-1 downto 0);
     type voice_outputs_array is array (0 to voices-1) of unsigned(bits_voice_out-1 downto 0);
-    type osc_freqs_array is array (0 to voices-1) of freqs_array;
+    
     type octaves_array is array (0 to oscs-1) of integer range 0 to bits-1;
 
     signal waveform     : std_logic_vector(bits2-1 downto 0);   -- the output being fed into DAC.
@@ -69,52 +74,32 @@ architecture Behavioral of synth_top is
     signal octave       : octaves_array;                        -- array of octave value, 1 per osc.
     signal wave         : waves_array;                          -- the type of wave for each osc. (cos/saw/square/tri)
     signal mode         : std_logic_vector(2 downto 0);         -- which FM "patch"
-    signal db_buttons   : std_logic_vector(voices-1 downto 0);  -- debounced buttons
-    signal virtual_buttons   : std_logic_vector(voices-1 downto 0);
+    signal virtual_buttons   : std_logic_vector(0 to voices-1);
     signal mod_index    : mod_index_array;                      -- array of modulation indeces, one per osc
     --signal FM_in        : FM_record;
     
-    signal up_down      : rotaries_array(0 to 4);                       -- up/down output of rotary entity
+    --signal up_down      : rotaries_array(0 to 4);                       -- up/down output of rotary entity
     
     signal page         : std_logic := '0';
     signal test         : std_logic := '0';
     signal test2        : std_logic_vector(bits_voice_out-1 downto 0);
     
     signal MIDI_rdy     : std_logic := '0';
-    signal MIDI_en      : std_logic := '0';
-    signal status, data1, data2 : std_logic_vector(7 downto 0);
+    signal status, data1, data2 : std_logic_vector(7 downto 0) := (others => '1');
     
     signal in_use       : std_logic_vector(0 to voices-1);
     
+    signal VGA_clk : std_logic;
 
-    constant div : integer := 8;                                -- 100 MHz / 2^div = Fs
-    constant MIDI_div : integer := 3200;                    -- 100 MHz / 31.25 kHz
-    constant ctr_bits : integer := integer(ceil(log2(real(MIDI_div))));
-    signal ctr : unsigned(div-1 downto 0) := (others => '0');      
-    signal MIDI_ctr : unsigned(ctr_bits-1 downto 0) := (others => '0');      
+    constant div : integer := 11;                                -- 100 MHz / 2^div = Fs
+    signal ctr : unsigned(div-1 downto 0) := (others => '0');           
     
-    -- generates the 12 frequencies we use. any other frequency is one of these shifted right
-    --      by some integer. Equal temperament, 2^(i/12) for i in (0,11)
-    function gen_notes(divisions : integer)
-        return ar is
-            variable notes_array : ar;
-        begin
-            for i in 0 to divisions-1 loop
-                notes_array(i) := to_unsigned(integer(2.0**(real(i)/real(divisions)) * (2.0**(bits-1))), bits);
-            end loop;
-            return notes_array;
-        end gen_notes; 
-    -- store these notes
-    constant notes : ar := gen_notes(voices);
 begin
 process (clk)
 begin
     if rising_edge(clk) then
         if MIDI_rdy = '1' then
-            --to_disp <= status & data2; 
-            virtual_buttons(0) <= '1';
-        else
-            virtual_buttons(0) <= '0';
+            to_disp <= status & data2;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
         end if;
     end if;
     
@@ -122,8 +107,8 @@ begin
 end process;
     -- control the FM patch with the top 3 switches.
     mode <= switches(7 downto 5);
-    LEDS <= "00" & db_buttons(0) & virtual_buttons(0) & test & MIDI_rdy & MIDI_en & MIDI_in;
-    to_disp <= test2(test2'left downto test2'left-15);
+    LEDS <= "0000" & virtual_buttons(0) & test & MIDI_rdy & MIDI_in;
+    --to_disp <= test2(test2'left downto test2'left-15);
    
     --virtual_buttons(0) <= status = X"90" and data2 /= (7 downto 0 => '0') and MIDI_rdy = '1';
    
@@ -133,24 +118,42 @@ end process;
         wave(i) <= switches(2*i+1 downto 2*i);
     end generate wave_controls;
    
-    -- debounce the keyboard/buttons
-    DB : entity work.debouncer
-        generic map (signals => voices)
-        port map (bouncy => buttons, clk => clk, debounced => db_buttons);
+       -- PLL_BASE: Phase Locked Loop (PLL) Clock Management Component
+   --           Spartan-6
+   -- Xilinx HDL Language Template, version 14.7
+
+   PLL_BASE_inst : PLL_BASE
+   generic map (
+      CLKFBOUT_MULT => 4,                   -- Multiply value for all CLKOUT clock outputs (1-64)
+      CLKIN_PERIOD => 10.0,                  -- Input clock period in ns to ps resolution (i.e. 33.333 is 30
+                                            -- MHz).
+      CLKOUT0_DIVIDE => 10
+   )
+   port map (
+      -- CLKOUT0 - CLKOUT5: 1-bit (each) output: Clock outputs
+      CLKOUT0 => VGA_clk,
+      CLKFBIN => clk,   -- 1-bit input: Feedback clock input
+      CLKIN => clk,       -- 1-bit input: Clock input
+      RST => '0'            -- 1-bit input: Reset input
+   );
+
+   -- End of PLL_BASE_inst instantiation
+    VGA : entity work.display 
+        generic map (xres => 800, yres => 600)
+        port map (clk => VGA_clk, hsync => hsync, vsync => vsync, red => R, green => G, blue => B);
    
     -- instantiate the LCD driver
     LCD : entity work.LCD_driver 
         generic map (bits => bits, clk_div => 10)
         port map (clk => clk, to_disp => to_disp, cathodes => cathodes, anodes => anodes);
     
-    -- instantiate the whole keyboard
-    VCS : for i in 0 to voices-1 generate
-        -- calculate the actual frequencies for each key. As mentioned, these will just be
-        --      the precomputed 12, shifted down by some number of octaves.
-        loop1 : for j in 0 to oscs-1 generate
-            osc_freqs(i)(j) <= signed(std_logic_vector(shift_right(notes(i), bits-1-octave(j))));
-        end generate loop1;
+    CTRL : entity work.voice_controller
+        generic map (bits => bits, voices => voices)
+        port map (clk => clk, MIDI_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, freqs => osc_freqs,
+                  start => virtual_buttons, in_use => in_use);
     
+    -- instantiate the whole keyboard
+    VCS : for i in 0 to voices-1 generate    
         -- the voice, the synth key, the heart of the synth
         VC : entity work.voice
             generic map (bits => bits, oscs => oscs)    
@@ -165,19 +168,14 @@ end process;
 --            
     end generate VCS;    
         
-    -- instantiate a rotary decoder for each rotary encoder.
-    rots : for i in 0 to 4 generate    
-        ROT : entity work.rotary
-            port map (AB => rotaries(i), clk => clk, up_down => up_down(i));
-    end generate rots;
         
     -- the DAC for the whole system's output.
     DAC : entity work.sigma_delta_DAC
         generic map (bits => bits2)
         port map (clk => clk, data_in => waveform, data_out => speaker);
         
-    MID : entity work.MIDI_decoder
-        port map (clk => clk, enable => MIDI_en, command_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
+--    MID : entity work.MIDI_decoder
+--        port map (clk => clk, command_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
 
 process (clk)
     variable cumsum : unsigned(bits2-1 downto 0);   -- will sum all voice outputs
@@ -185,13 +183,6 @@ begin
     -- little logic to produce the divded clock
     if rising_edge(clk) then
         ctr <= ctr + 1;
-        if MIDI_ctr = MIDI_div-1 then 
-            MIDI_ctr <= (others => '0');
-            MIDI_en <= '1';
-        else
-            MIDI_ctr <= MIDI_ctr + 1;
-            MIDI_en <= '0';
-        end if;
     end if;
     divided_clk <= ctr(div-1);
     
@@ -203,66 +194,5 @@ begin
     end loop;
     waveform <= std_logic_vector(cumsum);
     
-end process;
-
--- process to decode rotary up_down signals and actually change
---      a variable, like frequency or modulation index.
---      The 5th rotary isn't doing anything, I plan on using it
---      to page through the different variables that can be changed
---      I.E. first page is frequency+mod index, second page is ADSR, etc
-process (clk)
-begin
-    if rising_edge(clk) then
-        case up_down(0) is
-            -- down is high, up is low, decrease quantity
-            when "01" =>
-                if octave(0) > 0 then
-                    octave(0) <= octave(0) - 1;
-                end if;
-            -- up is high, down is low, increase quantity
-            when "10" =>
-                if octave(0) < bits-1 then
-                    octave(0) <= octave(0) + 1;
-                end if;
-            -- quantity is unchanged
-            when others => octave(0) <= octave(0);
-        end case;
-        
-        case up_down(1) is
-            when "01" =>
-                if octave(1) > 0 then
-                    octave(1) <= octave(1) - 1;
-                end if;
-            when "10" =>
-                if octave(1) < bits-1 then
-                    octave(1) <= octave(1) + 1;
-                end if;
-            when others => octave(1) <= octave(1);
-        end case;
-        
-        case up_down(2) is
-            when "01" =>
-                if mod_index(0) > 0 then
-                    mod_index(0) <= mod_index(0) - 1;
-                end if;
-            when "10" =>
-                if mod_index(0) < 15 then
-                    mod_index(0) <= mod_index(0) + 1;
-                end if;
-            when others => mod_index(0) <= mod_index(0);
-        end case;
-        
-        case up_down(3) is
-            when "01" =>
-                if mod_index(1) > 0 then
-                    mod_index(1) <= mod_index(1) - 1;
-                end if;
-            when "10" =>
-                if mod_index(1) < 15 then
-                    mod_index(1) <= mod_index(1) + 1;
-                end if;
-            when others => mod_index(1) <= mod_index(1);
-        end case;
-    end if;
 end process;
 end Behavioral;

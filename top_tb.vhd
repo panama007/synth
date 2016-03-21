@@ -21,8 +21,8 @@ architecture TB_ARCHITECTURE of MIDI_tb is
     signal  clk     :   std_logic;
 
     -- Observed signals - signals mapped to the output ports of tested entity
-    signal  status  :   std_logic_vector(6 downto 0);
-    signal  data1   :   std_logic_vector(6 downto 0);
+    signal  status  :   std_logic_vector(7 downto 0);
+    signal  data1   :   std_logic_vector(7 downto 0);
     signal  data_rdy:   std_logic;
 
     --Signal used to stop clock signal generators
@@ -33,11 +33,12 @@ architecture TB_ARCHITECTURE of MIDI_tb is
     --signal    TestB     :  test_signals;
     --signal    TestC     :  test_signals;
 
-    constant  clk_period:  time    := 20 ns;
+    constant  clk_period:  time    := 10 ns;
+    constant  MIDI_period: time    := 32 us;
     
-    constant tests1 : test_signals3 := ('0'& X"90" & '1' & '0'& X"3C" & '1' & '0'& X"60" & '1',
-                                        '0'& X"80" & '1' & '0'& X"45" & '1' & '0'& X"80" & '1',
-                                        '0'& X"A0" & '1' & '0'& X"54" & '1' & '0'& X"10" & '1');
+    constant tests1 : test_signals3 := ('0'& X"09" & '1' & '0'& X"3C" & '1' & '0'& X"06" & '1',
+                                        '0'& X"01" & '1' & '0'& X"A2" & '1' & '0'& X"01" & '1',
+                                        '0'& X"05" & '1' & '0'& X"2A" & '1' & '0'& X"08" & '1');
                                                         
     constant tests2 : test_signals2 := ('0'& X"3C" & '1' & '0'& X"60" & '1',
                                         '0'& X"45" & '1' & '0'& X"80" & '1',
@@ -46,9 +47,9 @@ architecture TB_ARCHITECTURE of MIDI_tb is
 begin
 
     -- Unit Under Test generic/port map
-    UUT : entity work.MIDI
+    UUT : entity work.MIDI_decoder
         port map(clk => clk, MIDI_in => MIDI_in, enable => MIDI_en,
-                 data_rdy => data_rdy, status => status, data1 => data1);
+                 command_rdy => data_rdy, status => status, data1 => data1);
 
 
     -- now generate the stimulus and test the design
@@ -60,6 +61,9 @@ begin
 
     begin  -- of stimulus process
         -- run the process that generates the random inputs/outputs 
+        MIDI_in <= '1';
+        wait for MIDI_period;
+        
         for j in tests1'range loop
             
             for  i  in  tests1(1)'range  loop
@@ -67,7 +71,7 @@ begin
                 MIDI_en <= '1';
                 MIDI_in <= tests1(j)(i);
                 
-                wait for clk_period;
+                wait for MIDI_period;
             end loop;
             MIDI_en <= '0';
             
@@ -75,15 +79,15 @@ begin
                 report "Data Not Ready Error"
                 severity ERROR;
                 
-            assert(status = tests1(j)(2 to 8))
+            assert(status = tests1(j)(1 to 8))
                 report "Status Error"
                 severity ERROR;
                 
-            assert(data1 = tests1(j)(12 to 18))
+            assert(data1 = tests1(j)(11 to 18))
                 report "Data1 Error"
                 severity ERROR;
             
-            wait for j*clk_period;
+            wait for j*MIDI_period;
 
         end loop;
         
@@ -94,7 +98,7 @@ begin
                 MIDI_en <= '1';
                 MIDI_in <= tests2(j)(i);
                 
-                wait for clk_period;
+                wait for MIDI_period;
             end loop;
             MIDI_en <= '0';
             
@@ -102,15 +106,15 @@ begin
                 report "Data Not Ready Error"
                 severity ERROR;
                 
-            assert(status = tests1(tests1'right)(2 to 8))
+            assert(status = tests1(tests1'right)(1 to 8))
                 report "Status Error"
                 severity ERROR;
                 
-            assert(data1 = tests2(j)(2 to 8))
+            assert(data1 = tests2(j)(1 to 8))
                 report "Data1 Error"
                 severity ERROR;
             
-            wait for j*clk_period;
+            wait for j*MIDI_period;
 
         end loop;
 
