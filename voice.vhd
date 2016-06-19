@@ -53,9 +53,7 @@ use work.my_constants.all;
 
 entity voice is
     generic (bits       : integer := bits;
-             oscs       : integer := oscs;
-             duration   : integer := 1;
-             sample_rate: integer := 10**8/2**8);
+             oscs       : integer := oscs);
     port    (voice_in   : in voice_input;
              clk,div_clk: in std_logic;
              --test       : out std_logic_vector(bits_voice_out-1 downto 0);

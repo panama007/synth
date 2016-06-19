@@ -67,7 +67,7 @@ architecture Behavioral of synth_top is
 
     signal waveform     : std_logic_vector(bits2-1 downto 0);   -- the output being fed into DAC.
     signal to_disp      : std_logic_vector(bits-1 downto 0);    -- number to display on 4-digit 7-segment LCD.
-    signal divided_clk  : std_logic;                            -- sampling clock.
+    signal sampling_clk  : std_logic;                            -- sampling clock.
     signal voice_outputs: voice_outputs_array;                  -- output of each voice
     signal envelope_outputs : voice_outputs_array;              -- output of voice after enveloping
     signal osc_freqs    : osc_freqs_array;                      -- 2D frequency array, 1 for each pair (osc,voice)
@@ -89,17 +89,21 @@ architecture Behavioral of synth_top is
     
     signal in_use       : std_logic_vector(0 to voices-1);
     
-    signal VGA_clk : std_logic;
-
-    constant div : integer := 11;                                -- 100 MHz / 2^div = Fs
-    signal ctr : unsigned(div-1 downto 0) := (others => '0');           
+    signal VGA_clk      : std_logic;  
+    signal x            : integer range 0 to VGA_timings.xres;
+    signal y            : integer range 0 to VGA_timings.yres;
+    signal draw         : std_logic;
     
 begin
 process (clk)
 begin
     if rising_edge(clk) then
         if MIDI_rdy = '1' then
-            to_disp <= status & data2;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+            if switches(0) = '0' then
+                to_disp <= status & data1; 
+            else
+                to_disp <= status & data2;  
+            end if;
         end if;
     end if;
     
@@ -109,6 +113,7 @@ end process;
     mode <= switches(7 downto 5);
     LEDS <= "0000" & virtual_buttons(0) & test & MIDI_rdy & MIDI_in;
     --to_disp <= test2(test2'left downto test2'left-15);
+    --to_disp <= status & data1;
    
     --virtual_buttons(0) <= status = X"90" and data2 /= (7 downto 0 => '0') and MIDI_rdy = '1';
    
@@ -117,31 +122,17 @@ end process;
     wave_controls : for i in 0 to oscs-1 generate
         wave(i) <= switches(2*i+1 downto 2*i);
     end generate wave_controls;
-   
-       -- PLL_BASE: Phase Locked Loop (PLL) Clock Management Component
-   --           Spartan-6
-   -- Xilinx HDL Language Template, version 14.7
 
-   PLL_BASE_inst : PLL_BASE
-   generic map (
-      CLKFBOUT_MULT => 4,                   -- Multiply value for all CLKOUT clock outputs (1-64)
-      CLKIN_PERIOD => 10.0,                  -- Input clock period in ns to ps resolution (i.e. 33.333 is 30
-                                            -- MHz).
-      CLKOUT0_DIVIDE => 10
-   )
-   port map (
-      -- CLKOUT0 - CLKOUT5: 1-bit (each) output: Clock outputs
-      CLKOUT0 => VGA_clk,
-      CLKFBIN => clk,   -- 1-bit input: Feedback clock input
-      CLKIN => clk,       -- 1-bit input: Clock input
-      RST => '0'            -- 1-bit input: Reset input
-   );
+    CLKS : entity work.clocks
+        port map (clk => clk, VGA_clk => VGA_clk, sampling_clk => sampling_clk);
 
    -- End of PLL_BASE_inst instantiation
     VGA : entity work.display 
-        generic map (xres => 800, yres => 600)
-        port map (clk => VGA_clk, hsync => hsync, vsync => vsync, red => R, green => G, blue => B);
-   
+        port map (clk => VGA_clk, hsync => hsync, vsync => vsync, red => R, green => G, blue => B, x => x, y => y, draw => draw);
+     
+    scope : entity work.oscilloscope
+        port map (clk => VGA_clk, waveform => waveform, draw => draw, x => x, y => y);
+     
     -- instantiate the LCD driver
     LCD : entity work.LCD_driver 
         generic map (bits => bits, clk_div => 10)
@@ -158,13 +149,13 @@ end process;
         VC : entity work.voice
             generic map (bits => bits, oscs => oscs)    
             port map (voice_in.FM_in.freq => osc_freqs(i), voice_in.FM_in.wave => wave, voice_in.FM_in.mode => mode, voice_in.FM_in.mod_index => mod_index,
-                      voice_in.button => virtual_buttons(i),  voice_in.synth_mode => switches(4), clk => clk, div_clk => divided_clk,
+                      voice_in.button => virtual_buttons(i),  voice_in.synth_mode => switches(4), clk => clk, div_clk => sampling_clk,
                       voice_out.output => envelope_outputs(i), voice_out.in_use => in_use(i));
         
         -- amplitude envelope for the voice output, synced to button press.
 --        ENV : entity work.envelope
 --            generic map (bits => bits_voice_out)
---            port map (full_signal => voice_outputs(i), clk => divided_clk, env_signal => envelope_outputs(i), button => db_buttons(i), controls => controls);
+--            port map (full_signal => voice_outputs(i), clk => sampling_clk, env_signal => envelope_outputs(i), button => db_buttons(i), controls => controls);
 --            
     end generate VCS;    
         
@@ -174,19 +165,12 @@ end process;
         generic map (bits => bits2)
         port map (clk => clk, data_in => waveform, data_out => speaker);
         
---    MID : entity work.MIDI_decoder
---        port map (clk => clk, command_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
+    MID : entity work.MIDI_decoder
+        port map (clk => clk, command_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
 
 process (clk)
     variable cumsum : unsigned(bits2-1 downto 0);   -- will sum all voice outputs
-begin
-    -- little logic to produce the divded clock
-    if rising_edge(clk) then
-        ctr <= ctr + 1;
-    end if;
-    divided_clk <= ctr(div-1);
-    
-    
+begin   
     -- add up all voice outputs
     cumsum := (others => '0');
     for i in 0 to voices-1 loop

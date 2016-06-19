@@ -101,7 +101,52 @@ package my_constants is
         in_use     : std_logic;
         output     : unsigned(bits_voice_out-1 downto 0);
     end record;
-    --type angles_array       is array(0 to oscs-1) of std_logic_vector(n-1 downto 0);
+    
+    type VGA_constants is record
+        xres    : integer;
+        yres    : integer;
+        
+        hfporch : integer;
+        hbporch : integer;
+        hspulse : integer;
+        
+        vfporch : integer;
+        vbporch : integer;
+        vspulse : integer;
+        
+        pulse   : std_logic;
+        
+        clk_div : integer;
+        clk_mul : integer;
+    end record;
+    
+    constant VGA_1080p : VGA_constants := ( xres => 1920,
+                                            yres => 1080,
+                                            hfporch => 88,
+                                            hspulse => 44,
+                                            hbporch => 148,
+                                            vfporch => 4,
+                                            vspulse => 5,
+                                            vbporch => 36,
+                                            pulse => '1',
+                                            clk_div => 2,
+                                            clk_mul => 3);
+                                
+    constant VGA_600p : VGA_constants := (  xres => 800,
+                                            yres => 600,
+                                            hfporch => 40,
+                                            hspulse => 128,
+                                            hbporch => 88,
+                                            vfporch => 1,
+                                            vspulse => 4,
+                                            vbporch => 23,
+                                            pulse => '0',
+                                            clk_div => 5,
+                                            clk_mul => 2);
+                                            
+    constant VGA_timings : VGA_constants := VGA_1080p;
+    
+    type VGA_ram is array(0 to VGA_timings.xres-1) of std_logic_vector(0 to VGA_timings.yres-1);
     
 end package my_constants;
 
