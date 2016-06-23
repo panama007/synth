@@ -90,9 +90,6 @@ architecture Behavioral of synth_top is
     signal in_use       : std_logic_vector(0 to voices-1);
     
     signal VGA_clk      : std_logic;  
-    signal x            : integer range 0 to VGA_timings.xres;
-    signal y            : integer range 0 to VGA_timings.yres;
-    signal draw         : std_logic;
     
 begin
 process (clk)
@@ -126,12 +123,8 @@ end process;
     CLKS : entity work.clocks
         port map (clk => clk, VGA_clk => VGA_clk, sampling_clk => sampling_clk);
 
-   -- End of PLL_BASE_inst instantiation
-    VGA : entity work.display 
-        port map (clk => VGA_clk, hsync => hsync, vsync => vsync, red => R, green => G, blue => B, x => x, y => y, draw => draw);
-     
-    scope : entity work.oscilloscope
-        port map (clk => VGA_clk, waveform => waveform, draw => draw, x => x, y => y);
+    display : entity work.display_top
+        port map (wave => wave, mode => mode, clk => VGA_clk, waveform => waveform, R => R, G => G, B => B, hsync => hsync, vsync => vsync);
      
     -- instantiate the LCD driver
     LCD : entity work.LCD_driver 

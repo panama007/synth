@@ -8,24 +8,26 @@ use work.my_constants.all;
 
 entity oscilloscope is
     port    ( clk       : in  std_logic;
-              x             : in  integer range 0 to VGA_timings.xres;
-              y             : in  integer range 0 to VGA_timings.yres;
-              waveform      : in  std_logic_vector(bits2-1 downto 0);
-              draw          : out std_logic);
+              x         : in  integer range 0 to VGA_timings.htotal-1;
+              y         : in  integer range 0 to VGA_timings.vtotal-1;
+              waveform  : in  std_logic_vector(bits2-1 downto 0);
+              draw      : out std_logic);
 end oscilloscope;
 
 architecture Behavioral of oscilloscope is
     constant scope_left     : integer := 200;
     constant scope_right    : integer := 1720;
-    constant scope_top      : integer := 624;
-    constant scope_bot      : integer := 880;
+    constant scope_top      : integer := 704;
+    constant scope_bot      : integer := 960;
+    constant line_top       : integer := 680;
+    constant line_bot       : integer := 984;
     
     constant scope_res      : integer := scope_bot - scope_top;
     constant scope_len      : integer := scope_right - scope_left;
     
     constant res_bits       : integer := integer(ceil(log2(real(scope_res))));
     
-    constant n              : integer := 5;
+    constant n              : integer := 5;--40;
     
     constant clks_per_refr  : integer := 2475000;
     constant clks_per_sample: integer := clks_per_refr/n;--3072*5;
@@ -34,8 +36,8 @@ architecture Behavioral of oscilloscope is
     --type samples_array is array (0 to 1) of sample_array;
     
     signal samples : sample_array;
-    attribute ram_style: string;
-    attribute ram_style of samples : signal is "block";
+    --attribute ram_style: string;
+    --attribute ram_style of samples : signal is "block";
     --signal arr      : integer range 0 to 1;
     signal head     : integer range sample_array'range;
     signal disp_head: integer range sample_array'range;
@@ -44,18 +46,23 @@ architecture Behavioral of oscilloscope is
     
     signal refr_ctr         : integer range 0 to clks_per_refr-1;
     signal sample_ctr       : integer range 0 to clks_per_sample-1;
+    
+    signal x_delay  : integer range 0 to VGA_timings.htotal-1;
+    signal y_delay  : integer range 0 to VGA_timings.vtotal-1;
 begin
-
-    ind <= (disp_head - (scope_right - x)) mod sample_array'length;
 
 process (clk)
     
 begin
-    if rising_edge(clk) then    
-        if (y >= scope_top and y <= scope_bot) and (x >= scope_left and x <= scope_right) then
-            if (x = scope_left or x = scope_right) or (y = scope_top or y = scope_bot) then
+    if rising_edge(clk) then   
+        ind <= (disp_head - (scope_right - x)) mod sample_array'length;
+        x_delay <= x;
+        y_delay <= y;
+    
+        if (y_delay >= line_top and y_delay <= line_bot) and (x_delay >= scope_left and x_delay <= scope_right) then
+            if (x_delay = scope_left or x_delay = scope_right) or (y_delay = line_top or y_delay = line_bot) then
                 draw <= '1';
-            elsif y = scope_bot - to_integer(unsigned(samples(ind))) then
+            elsif y_delay = scope_bot-1 - to_integer(unsigned(samples(ind))) then
                 draw <= '1';
             else
                 draw <= '0';

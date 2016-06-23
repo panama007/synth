@@ -89,7 +89,8 @@ begin
         note2 := ((to_integer(unsigned(r.keys(i)))+3)*2**pb_bits + v.pitch_bend) mod (2**pb_bits * 12) ;
         
         v.freqs(i)(0) := signed(std_logic_vector(shift_right(notes(note), 10-oct)));
-        v.freqs(i)(1) := signed(std_logic_vector(shift_right(notes(note2), 10-oct2)));
+        v.freqs(i)(1) := signed(std_logic_vector(shift_right(notes(note), 10-oct)));
+        --v.freqs(i)(1) := signed(std_logic_vector(shift_right(notes(note2), 10-oct2)));
     end loop;
     
     rin <= v;

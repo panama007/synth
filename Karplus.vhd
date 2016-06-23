@@ -49,14 +49,19 @@ begin
         generic map(bits => bits)
         port map( clk => clk, rand => rand_out); 
 
-    dampen_out <= resize(shift_right(resize(prev1, bits+1) + resize(unsigned(output_int), bits+1), 1), bits);
+    dampen_out <= resize(shift_right(resize(unsigned(delay(r.ptr)), bits+1) + resize(unsigned(delay(r.ptr+1 mod p)), bits+1), 1), bits);
     output <= unsigned(output_int);
 
 process (start, r)
     variable v : KS_record;
     --variable dampen_out : unsigned(bits-1 downto 0);
 begin
-    v := r; v.start := start; v.ptr := r.ptr+1 mod p;
+    v := r; v.start := start; 
+    if r.ptr < p-1 then 
+        v.ptr := r.ptr+1;
+    else
+        v.ptr := 0;
+    end if;
     
     if start = '1' and r.start = '0' then
         v.state := resetting;

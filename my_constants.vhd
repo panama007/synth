@@ -109,10 +109,12 @@ package my_constants is
         hfporch : integer;
         hbporch : integer;
         hspulse : integer;
+        htotal  : integer;
         
         vfporch : integer;
         vbporch : integer;
         vspulse : integer;
+        vtotal  : integer;
         
         pulse   : std_logic;
         
@@ -125,9 +127,11 @@ package my_constants is
                                             hfporch => 88,
                                             hspulse => 44,
                                             hbporch => 148,
+                                            htotal => 2200,
                                             vfporch => 4,
                                             vspulse => 5,
                                             vbporch => 36,
+                                            vtotal => 1125,
                                             pulse => '1',
                                             clk_div => 2,
                                             clk_mul => 3);
@@ -137,9 +141,11 @@ package my_constants is
                                             hfporch => 40,
                                             hspulse => 128,
                                             hbporch => 88,
+                                            htotal => 1056,
                                             vfporch => 1,
                                             vspulse => 4,
                                             vbporch => 23,
+                                            vtotal => 628,
                                             pulse => '0',
                                             clk_div => 5,
                                             clk_mul => 2);

@@ -105,7 +105,7 @@ begin
 
         v.in_use := '1';
     else
-        v.output := (others => '0');
+        v.output := '1' & (bits_voice_out-2 downto 0 => '0');
         v.in_use := '0';
     end if;
     
