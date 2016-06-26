@@ -64,13 +64,13 @@ architecture Behavioral of voice is
     type state_type is (off, playing);
 
     signal FM_output : signed(bits_voice_out-1 downto 0);
-    signal KS_output : unsigned(bits_voice_out-1 downto 0);
+    signal KS_output : signed(bits_voice_out-1 downto 0);
     
     type voice_record is record
         button : std_logic;
         internal_button : std_logic;
         state  : state_type;
-        output : unsigned(bits_voice_out-1 downto 0);
+        output : signed(bits_voice_out-1 downto 0);
         in_use : std_logic;
     end record;
  
@@ -100,12 +100,12 @@ begin
         if voice_in.synth_mode = '1' then
             v.output := KS_output;
         else
-            v.output := to_unsigned(to_integer(FM_output) + 2**(FM_output'length-1), bits_voice_out);
+            v.output := FM_output;
         end if;
 
         v.in_use := '1';
     else
-        v.output := '1' & (bits_voice_out-2 downto 0 => '0');
+        v.output := (others => '0');
         v.in_use := '0';
     end if;
     

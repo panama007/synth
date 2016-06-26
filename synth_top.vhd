@@ -61,7 +61,7 @@ entity synth_top is
 end synth_top;
 
 architecture Behavioral of synth_top is
-    type voice_outputs_array is array (0 to voices-1) of unsigned(bits_voice_out-1 downto 0);
+    type voice_outputs_array is array (0 to voices-1) of signed(bits_voice_out-1 downto 0);
     
     type octaves_array is array (0 to oscs-1) of integer range 0 to bits-1;
 
@@ -162,7 +162,7 @@ end process;
         port map (clk => clk, command_rdy => MIDI_rdy, status => status, data1 => data1, data2 => data2, MIDI_in => MIDI_in);
 
 process (clk)
-    variable cumsum : unsigned(bits2-1 downto 0);   -- will sum all voice outputs
+    variable cumsum : signed(bits2-1 downto 0);   -- will sum all voice outputs
 begin   
     -- add up all voice outputs
     cumsum := (others => '0');

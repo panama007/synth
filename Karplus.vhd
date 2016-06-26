@@ -13,7 +13,7 @@ entity Karplus is
               clk, div_clk   : in  std_logic;
               --test : out std_logic_vector(bits-1 downto 0);
               --test2 : out unsigned(bits-1 downto 0);
-              output: out unsigned(bits-1 downto 0));
+              output: out signed(bits-1 downto 0));
 end Karplus;
 
 architecture Behavioral of Karplus is
@@ -50,7 +50,7 @@ begin
         port map( clk => clk, rand => rand_out); 
 
     dampen_out <= resize(shift_right(resize(unsigned(delay(r.ptr)), bits+1) + resize(unsigned(delay(r.ptr+1 mod p)), bits+1), 1), bits);
-    output <= unsigned(output_int);
+    output <= signed(output_int);
 
 process (start, r)
     variable v : KS_record;

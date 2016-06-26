@@ -55,7 +55,7 @@ use IEEE.MATH_REAL.all;
 
 package my_constants is
     constant oscs   : integer := 2;
-    constant voices : integer := 1; 
+    constant voices : integer := 2; 
     
     constant bits   : integer := 16;
     constant bits_voice_out : integer := bits + integer(ceil(log2(real(oscs))));
@@ -99,7 +99,7 @@ package my_constants is
     end record;
     type voice_output is record
         in_use     : std_logic;
-        output     : unsigned(bits_voice_out-1 downto 0);
+        output     : signed(bits_voice_out-1 downto 0);
     end record;
     
     type VGA_constants is record

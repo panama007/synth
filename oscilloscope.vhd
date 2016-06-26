@@ -19,6 +19,7 @@ architecture Behavioral of oscilloscope is
     constant scope_right    : integer := 1720;
     constant scope_top      : integer := 704;
     constant scope_bot      : integer := 960;
+    constant scope_mid      : integer := (scope_bot + scope_top) / 2;
     constant line_top       : integer := 680;
     constant line_bot       : integer := 984;
     
@@ -62,7 +63,7 @@ begin
         if (y_delay >= line_top and y_delay <= line_bot) and (x_delay >= scope_left and x_delay <= scope_right) then
             if (x_delay = scope_left or x_delay = scope_right) or (y_delay = line_top or y_delay = line_bot) then
                 draw <= '1';
-            elsif y_delay = scope_bot-1 - to_integer(unsigned(samples(ind))) then
+            elsif y_delay = scope_mid-1 - to_integer(signed(samples(ind))) then
                 draw <= '1';
             else
                 draw <= '0';
